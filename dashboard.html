@@ -1,0 +1,2577 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Android Slim - Live Dashboard</title>
+    <style>
+        :root {
+            --bg-dark: #0d1117;
+            --bg-card: #161b22;
+            --bg-input: #21262d;
+            --border: #30363d;
+            --accent: #238636;
+            --danger: #da3633;
+            --warning: #d29922;
+            --info: #58a6ff;
+            --text: #c9d1d9;
+            --text-muted: #8b949e;
+            --text-bright: #f0f6fc;
+        }
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Helvetica, Arial, sans-serif;
+            background: var(--bg-dark);
+            color: var(--text);
+            min-height: 100vh;
+        }
+        .app { display: grid; grid-template-columns: 260px 1fr 380px; min-height: 100vh; }
+
+        /* Sidebar */
+        .sidebar {
+            background: var(--bg-card);
+            border-right: 1px solid var(--border);
+            padding: 15px;
+            overflow-y: auto;
+        }
+        .logo { font-size: 1.4em; font-weight: bold; margin-bottom: 15px; padding-bottom: 15px; border-bottom: 1px solid var(--border); }
+        .conn-box { padding: 12px; border-radius: 8px; margin-bottom: 15px; }
+        .conn-ok { background: rgba(35,134,54,0.2); border: 1px solid var(--accent); }
+        .conn-err { background: rgba(218,54,51,0.2); border: 1px solid var(--danger); }
+        .conn-status { display: flex; align-items: center; gap: 8px; margin-bottom: 8px; }
+        .dot { width: 10px; height: 10px; border-radius: 50%; }
+        .dot.on { background: var(--accent); animation: pulse 2s infinite; }
+        .dot.off { background: var(--danger); }
+        @keyframes pulse { 0%,100%{opacity:1} 50%{opacity:0.5} }
+        .conn-info { font-size: 0.85em; color: var(--text-muted); }
+        .ip-input { width: 100%; padding: 8px; margin: 8px 0; background: var(--bg-input); border: 1px solid var(--border); border-radius: 4px; color: var(--text); }
+        .nav-section { margin-bottom: 15px; }
+        .nav-section h3 { font-size: 0.7em; text-transform: uppercase; color: var(--text-muted); margin-bottom: 8px; letter-spacing: 1px; }
+        .nav-item { display: flex; align-items: center; gap: 8px; padding: 8px 10px; border-radius: 6px; cursor: pointer; font-size: 0.9em; }
+        .nav-item:hover { background: var(--bg-input); }
+        .nav-item.active { background: var(--bg-input); border-left: 3px solid var(--info); }
+
+        /* Main */
+        .main { padding: 20px; overflow-y: auto; }
+        .header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px; }
+        .header h1 { font-size: 1.4em; }
+        .btn { padding: 6px 14px; border-radius: 6px; border: 1px solid var(--border); background: var(--bg-input); color: var(--text); cursor: pointer; font-size: 0.85em; }
+        .btn:hover { background: var(--border); }
+        .btn-primary { background: var(--accent); border-color: var(--accent); }
+        .btn-primary:hover { background: #2ea043; }
+        .btn-danger { background: var(--danger); border-color: var(--danger); }
+        .btn-warning { background: var(--warning); border-color: var(--warning); color: #000; }
+        .card { background: var(--bg-card); border: 1px solid var(--border); border-radius: 8px; padding: 15px; margin-bottom: 15px; }
+        .card h2 { font-size: 1em; margin-bottom: 12px; display: flex; align-items: center; gap: 8px; }
+        .stats { display: grid; grid-template-columns: repeat(auto-fit, minmax(120px, 1fr)); gap: 12px; }
+        .stat { background: var(--bg-input); padding: 12px; border-radius: 6px; text-align: center; }
+        .stat .val { font-size: 1.8em; font-weight: bold; color: var(--text-bright); }
+        .stat .lbl { font-size: 0.8em; color: var(--text-muted); }
+        .table-wrap { max-height: calc(100vh - 280px); overflow-y: auto; }
+        table { width: 100%; border-collapse: collapse; font-size: 0.85em; }
+        th, td { padding: 8px 10px; text-align: left; border-bottom: 1px solid var(--border); }
+        th { background: var(--bg-input); font-weight: 600; position: sticky; top: 0; }
+        tr:hover { background: var(--bg-input); }
+        .tag { display: inline-block; padding: 2px 8px; border-radius: 12px; font-size: 0.7em; font-weight: 600; }
+        .tag-critical { background: var(--danger); }
+        .tag-danger { background: var(--danger); }
+        .tag-high { background: #b62324; }
+        .tag-medium { background: var(--warning); color: #000; }
+        .tag-warning { background: #b35a00; }
+        .tag-low { background: var(--accent); }
+        .tag-info { background: var(--info); }
+        .act-btn { padding: 3px 8px; border-radius: 4px; border: none; cursor: pointer; font-size: 0.75em; margin-right: 4px; }
+        .act-remove { background: var(--danger); color: white; }
+        .act-disable { background: var(--warning); color: black; }
+        .act-enable { background: var(--accent); color: white; }
+        .act-restore { background: var(--info); color: white; }
+        .search { width: 100%; padding: 8px 12px; background: var(--bg-input); border: 1px solid var(--border); border-radius: 6px; color: var(--text); margin-bottom: 12px; }
+        .search:focus { outline: none; border-color: var(--info); }
+        .tabs { display: flex; gap: 4px; margin-bottom: 15px; border-bottom: 1px solid var(--border); padding-bottom: 8px; flex-wrap: wrap; }
+        .tab { padding: 6px 12px; border-radius: 4px 4px 0 0; cursor: pointer; background: transparent; border: none; color: var(--text-muted); font-size: 0.85em; }
+        .tab:hover { color: var(--text); }
+        .tab.active { background: var(--bg-input); color: var(--text-bright); border-bottom: 2px solid var(--info); }
+        .mono { font-family: 'Consolas', monospace; }
+        .hidden { display: none !important; }
+        .loading { display: flex; align-items: center; justify-content: center; padding: 30px; color: var(--text-muted); }
+        .spinner { width: 24px; height: 24px; border: 3px solid var(--border); border-top-color: var(--info); border-radius: 50%; animation: spin 1s linear infinite; margin-right: 12px; }
+        @keyframes spin { to { transform: rotate(360deg); } }
+        .chk-list { max-height: 300px; overflow-y: auto; }
+        .chk-item { display: flex; align-items: center; padding: 6px 8px; border-radius: 4px; font-size: 0.9em; }
+        .chk-item:hover { background: var(--bg-input); }
+        .chk-item input { margin-right: 10px; }
+        .chk-item .name { flex: 1; }
+        .chk-item .id { color: var(--text-muted); font-size: 0.8em; font-family: monospace; }
+
+        /* Log Panel */
+        .log-panel { background: var(--bg-card); border-left: 1px solid var(--border); display: flex; flex-direction: column; }
+        .log-header { padding: 12px; border-bottom: 1px solid var(--border); display: flex; justify-content: space-between; align-items: center; }
+        .log-content { flex: 1; overflow-y: auto; padding: 8px; font-family: 'Consolas', monospace; font-size: 0.8em; }
+        .log-entry { padding: 6px 10px; margin-bottom: 4px; border-radius: 4px; background: var(--bg-input); }
+        .log-entry.success { border-left: 3px solid var(--accent); }
+        .log-entry.error { border-left: 3px solid var(--danger); }
+        .log-entry.warning { border-left: 3px solid var(--warning); }
+        .log-entry.info { border-left: 3px solid var(--info); }
+        .log-time { color: var(--text-muted); font-size: 0.85em; }
+        .log-cmd { background: #000; padding: 6px 10px; margin: 4px 0; border-radius: 4px; }
+        .log-cmd::before { content: "$ "; color: var(--accent); }
+        .cmd-input { padding: 10px; border-top: 1px solid var(--border); }
+        .cmd-input input { width: 100%; padding: 8px; background: var(--bg-input); border: 1px solid var(--border); border-radius: 4px; color: var(--text); font-family: monospace; }
+        .cmd-input input:focus { outline: none; border-color: var(--info); }
+
+        /* Terminal */
+        .terminal { background: #000; padding: 15px; border-radius: 6px; font-family: monospace; min-height: 400px; max-height: 60vh; overflow-y: auto; white-space: pre-wrap; word-break: break-all; }
+        .term-line { margin-bottom: 2px; }
+        .term-prompt { color: var(--accent); }
+        .term-output { color: var(--text); }
+        .term-error { color: var(--danger); }
+
+        /* CPU Monitor */
+        .cpu-core { text-align: center; }
+        .cpu-bar { height: 80px; background: var(--bg-dark); border-radius: 5px; position: relative; overflow: hidden; margin-bottom: 5px; }
+        .cpu-fill { position: absolute; bottom: 0; left: 0; right: 0; background: linear-gradient(to top, var(--accent), var(--info)); transition: height 0.5s; border-radius: 5px; }
+        .cpu-fill.high { background: linear-gradient(to top, var(--warning), var(--danger)); }
+        .cpu-val { position: absolute; bottom: 5px; left: 0; right: 0; font-size: 0.8em; font-weight: bold; text-shadow: 0 0 3px rgba(0,0,0,0.8); }
+        .cpu-lbl { font-size: 0.8em; color: var(--text-muted); }
+        .cpu-freq { font-size: 0.7em; color: var(--info); }
+        .cpu-suggestion { padding: 12px; background: var(--bg-input); border-radius: 6px; border-left: 4px solid var(--info); margin-bottom: 8px; }
+        .cpu-suggestion.warning { border-left-color: var(--warning); }
+        .cpu-suggestion.critical { border-left-color: var(--danger); }
+        .cpu-suggestion.success { border-left-color: var(--accent); }
+        .cpu-suggestion .title { font-weight: bold; margin-bottom: 4px; }
+        .cpu-suggestion .desc { font-size: 0.9em; color: var(--text-muted); }
+        .cpu-suggestion .action { font-size: 0.85em; color: var(--info); margin-top: 4px; }
+        .proc-row { display: flex; align-items: center; padding: 8px 10px; background: var(--bg-input); border-radius: 6px; margin-bottom: 6px; gap: 10px; }
+        .proc-row .cpu-pct { width: 50px; font-weight: bold; text-align: right; }
+        .proc-row .cpu-pct.high { color: var(--danger); }
+        .proc-row .proc-name { flex: 1; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+        .proc-row .proc-pkg { font-size: 0.8em; color: var(--text-muted); }
+        /* Security Review */
+        .process-security-list { max-height: 400px; overflow-y: auto; }
+        .sec-proc { padding: 12px; background: var(--bg-input); border-radius: 8px; margin-bottom: 10px; border-left: 4px solid var(--border); }
+        .sec-proc.critical { border-left-color: var(--danger); background: rgba(218,54,51,0.1); }
+        .sec-proc.high { border-left-color: #ff6b35; background: rgba(255,107,53,0.1); }
+        .sec-proc.warning { border-left-color: var(--warning); background: rgba(210,153,34,0.1); }
+        .sec-proc.info { border-left-color: var(--info); }
+        .sec-proc-header { display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 8px; }
+        .sec-proc-name { font-weight: bold; word-break: break-all; }
+        .sec-proc-pid { font-size: 0.8em; color: var(--text-muted); background: var(--bg-dark); padding: 2px 8px; border-radius: 4px; }
+        .sec-proc-details { font-size: 0.85em; color: var(--text-muted); margin-bottom: 8px; }
+        .sec-proc-flags { display: flex; flex-wrap: wrap; gap: 6px; }
+        .sec-flag { font-size: 0.75em; padding: 3px 8px; border-radius: 4px; }
+        .sec-flag.critical { background: var(--danger); color: white; }
+        .sec-flag.high { background: #ff6b35; color: white; }
+        .sec-flag.warning { background: var(--warning); color: black; }
+        .sec-flag.medium { background: var(--info); color: white; }
+        .sec-flag.info { background: var(--text-muted); color: white; }
+        /* Dependency Modal */
+        .modal-overlay { position: fixed; top: 0; left: 0; right: 0; bottom: 0; background: rgba(0,0,0,0.7); z-index: 1000; display: flex; align-items: center; justify-content: center; opacity: 0; visibility: hidden; transition: opacity 0.3s, visibility 0.3s; }
+        .modal-overlay.show { opacity: 1; visibility: visible; }
+        .modal { background: var(--bg-card); border-radius: 12px; max-width: 600px; width: 90%; max-height: 80vh; overflow: hidden; transform: scale(0.9); transition: transform 0.3s; }
+        .modal-overlay.show .modal { transform: scale(1); }
+        .modal-header { padding: 16px 20px; border-bottom: 1px solid var(--border); display: flex; justify-content: space-between; align-items: center; }
+        .modal-header h3 { margin: 0; font-size: 1.1em; }
+        .modal-close { background: none; border: none; color: var(--text-muted); font-size: 1.5em; cursor: pointer; padding: 0; line-height: 1; }
+        .modal-close:hover { color: var(--text); }
+        .modal-body { padding: 20px; overflow-y: auto; max-height: calc(80vh - 120px); }
+        .dep-section { margin-bottom: 20px; }
+        .dep-section h4 { margin: 0 0 10px 0; font-size: 0.95em; color: var(--text-muted); display: flex; align-items: center; gap: 8px; }
+        .dep-safety { padding: 12px 15px; border-radius: 8px; margin-bottom: 15px; }
+        .dep-safety.safe { background: rgba(39,174,96,0.15); border: 1px solid var(--success); }
+        .dep-safety.dangerous { background: rgba(218,54,51,0.15); border: 1px solid var(--danger); }
+        .dep-safety.caution { background: rgba(210,153,34,0.15); border: 1px solid var(--warning); }
+        .dep-safety.unknown { background: var(--bg-input); border: 1px solid var(--border); }
+        .dep-safety-header { display: flex; align-items: center; gap: 10px; margin-bottom: 8px; }
+        .dep-safety-icon { font-size: 1.5em; }
+        .dep-safety-level { font-weight: bold; text-transform: uppercase; }
+        .dep-safety.safe .dep-safety-level { color: var(--success); }
+        .dep-safety.dangerous .dep-safety-level { color: var(--danger); }
+        .dep-safety.caution .dep-safety-level { color: var(--warning); }
+        .dep-list { list-style: none; padding: 0; margin: 0; }
+        .dep-list li { padding: 8px 12px; background: var(--bg-input); border-radius: 6px; margin-bottom: 6px; font-size: 0.9em; display: flex; align-items: center; gap: 8px; }
+        .dep-list li .icon { font-size: 1.1em; }
+        .dep-rec { padding: 10px 14px; border-radius: 8px; margin-bottom: 8px; display: flex; align-items: flex-start; gap: 10px; }
+        .dep-rec .icon { font-size: 1.2em; }
+        .dep-rec .content { flex: 1; }
+        .dep-rec .action { font-weight: bold; margin-bottom: 2px; }
+        .dep-rec .reason { font-size: 0.85em; color: var(--text-muted); }
+        .dep-rec.safe { background: rgba(39,174,96,0.1); }
+        .dep-rec.warning { background: rgba(210,153,34,0.1); }
+        .dep-rec.danger { background: rgba(218,54,51,0.1); }
+        .act-btn.act-info { background: var(--info); }
+        .act-btn.act-info:hover { background: #2980b9; }
+        .dep-loading { text-align: center; padding: 40px; color: var(--text-muted); }
+        .dep-loading .spinner { font-size: 2em; animation: spin 1s linear infinite; display: inline-block; }
+        @keyframes spin { from { transform: rotate(0deg); } to { transform: rotate(360deg); } }
+        /* Permission tags */
+        .perm-tag { display: inline-block; padding: 3px 8px; border-radius: 4px; font-size: 0.75em; font-family: monospace; }
+        .perm-tag.dangerous { background: rgba(218,54,51,0.2); color: var(--danger); border: 1px solid var(--danger); }
+        .perm-tag.granted { background: rgba(39,174,96,0.15); color: var(--success); border: 1px solid rgba(39,174,96,0.3); }
+        .perm-tag.denied { background: var(--bg-input); color: var(--text-muted); border: 1px solid var(--border); text-decoration: line-through; }
+    </style>
+</head>
+<body>
+    <div class="app">
+        <!-- Sidebar -->
+        <aside class="sidebar">
+            <div class="logo">🛡️ Android Slim</div>
+            <div id="connBox" class="conn-box conn-err">
+                <div class="conn-status">
+                    <span id="connDot" class="dot off"></span>
+                    <span id="connText">Disconnected</span>
+                </div>
+                <div id="connInfo" class="conn-info"></div>
+                <input type="text" class="ip-input" id="ipInput" value="172.169.10.189:5555" placeholder="Device IP:Port">
+                <button class="btn btn-primary" style="width:100%;margin-top:5px;" onclick="connect()">🔌 Connect</button>
+            </div>
+            <nav class="nav-section">
+                <h3>Analysis</h3>
+                <div class="nav-item active" onclick="showSection('overview',this)">📊 Overview</div>
+                <div class="nav-item" onclick="showSection('packages',this)">📦 Packages</div>
+                <div class="nav-item" onclick="showSection('installorigin',this)">📅 Install Origins</div>
+                <div class="nav-item" onclick="showSection('network',this)">🌐 Network</div>
+                <div class="nav-item" onclick="showSection('dns',this)">🔍 DNS Analysis</div>
+                <div class="nav-item" onclick="showSection('processes',this)">⚙️ Processes</div>
+                <div class="nav-item" onclick="showSection('security',this)">🛡️ Process Security</div>
+                <div class="nav-item" onclick="showSection('cpu',this)">🖥️ CPU Monitor</div>
+            </nav>
+            <nav class="nav-section">
+                <h3>Actions</h3>
+                <div class="nav-item" onclick="showSection('debloat',this)">🗑️ Debloat</div>
+                <div class="nav-item" onclick="showSection('restore',this)">↩️ Restore</div>
+            </nav>
+            <nav class="nav-section">
+                <h3>Tools</h3>
+                <div class="nav-item" onclick="showSection('wallpaper',this)">🖼️ Wallpaper</div>
+                <div class="nav-item" onclick="showSection('terminal',this)">💻 Terminal</div>
+            </nav>
+        </aside>
+
+        <!-- Main Content -->
+        <main class="main" id="mainContent">
+            <!-- Overview -->
+            <section id="sec-overview">
+                <div class="header">
+                    <h1>📊 System Overview</h1>
+                    <button class="btn btn-primary" onclick="fullScan()">🔄 Full Scan</button>
+                </div>
+                <div class="stats" id="statsGrid">
+                    <div class="stat"><div class="val" id="statTotal">--</div><div class="lbl">Total Packages</div></div>
+                    <div class="stat"><div class="val" id="statVendor">--</div><div class="lbl" id="lblVendor">Vendor Apps</div></div>
+                    <div class="stat"><div class="val" id="statDisabled">--</div><div class="lbl">Disabled</div></div>
+                    <div class="stat"><div class="val" id="statConns">--</div><div class="lbl">Connections</div></div>
+                    <div class="stat"><div class="val" id="statSuspicious">--</div><div class="lbl">Suspicious</div></div>
+                    <div class="stat"><div class="val" id="statProcs">--</div><div class="lbl">Processes</div></div>
+                </div>
+                <div class="card">
+                    <h2>📱 Device Information</h2>
+                    <div id="deviceInfo"><div class="loading"><div class="spinner"></div>Connect to device...</div></div>
+                </div>
+                <div class="card">
+                    <h2>🚨 High-Risk Packages</h2>
+                    <div id="highRisk"><div class="loading"><div class="spinner"></div>Scanning...</div></div>
+                </div>
+                <div class="card">
+                    <h2>🔴 Suspicious Network Connections</h2>
+                    <div id="suspiciousNet"><div class="loading"><div class="spinner"></div>Scanning...</div></div>
+                </div>
+            </section>
+
+            <!-- Packages -->
+            <section id="sec-packages" class="hidden" style="display:none;flex-direction:column;height:calc(100vh - 40px);">
+                <div class="header" style="flex-shrink:0;">
+                    <h1>📦 Package Manager</h1>
+                    <button class="btn" onclick="loadPackages()">🔄 Refresh</button>
+                </div>
+                <div class="tabs" id="pkgTabs" style="flex-shrink:0;">
+                    <button class="tab active" onclick="filterPkgs('all',this)">All</button>
+                    <button class="tab" onclick="filterPkgs('vendor',this)" id="tabVendor">Vendor</button>
+                    <button class="tab" onclick="filterPkgs('google',this)">Google</button>
+                    <button class="tab" onclick="filterPkgs('disabled',this)">Disabled</button>
+                </div>
+                <input type="text" class="search" placeholder="🔍 Search packages..." id="pkgSearch" oninput="searchPkgs()" style="flex-shrink:0;">
+                <div class="card" style="flex:1;overflow:hidden;display:flex;flex-direction:column;">
+                    <div class="table-wrap" style="flex:1;max-height:none;">
+                        <table>
+                            <thead><tr><th>App Name / Package</th><th>Risk</th><th>Actions</th></tr></thead>
+                            <tbody id="pkgTable"></tbody>
+                        </table>
+                    </div>
+                </div>
+            </section>
+
+            <!-- Install Origins -->
+            <section id="sec-installorigin" class="hidden">
+                <div class="header">
+                    <h1>📅 Install Origins</h1>
+                    <button class="btn btn-primary" onclick="loadInstallOrigins()">🔄 Analyze</button>
+                </div>
+                <p style="color:var(--text-muted);margin-bottom:15px;">
+                    Identify which apps came pre-installed vs pushed via system updates. Apps installed after factory date are potential bloatware added by OTA updates.
+                </p>
+                <div id="installProgress" class="card hidden" style="margin-bottom:15px;background:var(--bg-input);">
+                    <div style="display:flex;align-items:center;gap:15px;">
+                        <div class="spinner"></div>
+                        <div style="flex:1;">
+                            <div style="font-weight:500;" id="installProgressText">Analyzing packages...</div>
+                            <div style="background:var(--bg-dark);border-radius:4px;height:8px;margin-top:8px;overflow:hidden;">
+                                <div id="installProgressBar" style="background:var(--accent);height:100%;width:0%;transition:width 0.3s;"></div>
+                            </div>
+                            <div style="font-size:0.8em;color:var(--text-muted);margin-top:4px;" id="installProgressDetail">0 / 0 packages</div>
+                        </div>
+                    </div>
+                </div>
+                <div class="stats" id="installStats" style="margin-bottom:15px;">
+                    <div class="stat"><div class="val" id="installTotal">--</div><div class="lbl">Total Packages</div></div>
+                    <div class="stat"><div class="val" id="installPreinstalled">--</div><div class="lbl">Pre-installed</div></div>
+                    <div class="stat"><div class="val" id="installUpdates">--</div><div class="lbl">System Updates</div></div>
+                    <div class="stat"><div class="val" id="installPlayStore">--</div><div class="lbl">Play Store</div></div>
+                    <div class="stat"><div class="val" id="installManual">--</div><div class="lbl">Manual/APK</div></div>
+                </div>
+                <div class="card">
+                    <h2>🆕 Apps Added by System Updates</h2>
+                    <p style="color:var(--text-muted);margin-bottom:10px;font-size:0.85em;">
+                        These apps were NOT on your phone at factory - they were pushed via OTA updates. Prime candidates for removal.
+                    </p>
+                    <div class="table-wrap" style="max-height:350px;">
+                        <table>
+                            <thead><tr><th>App / Package</th><th>First Installed</th><th>Source</th><th>Actions</th></tr></thead>
+                            <tbody id="installUpdatesTable"></tbody>
+                        </table>
+                    </div>
+                </div>
+                <div class="card">
+                    <h2>📱 Pre-installed (Factory ROM)</h2>
+                    <p style="color:var(--text-muted);margin-bottom:10px;font-size:0.85em;">
+                        Apps that came with your phone from the factory.
+                    </p>
+                    <div class="tabs" id="preinstallTabs">
+                        <button class="tab active" onclick="filterPreinstall('all',this)">All</button>
+                        <button class="tab" onclick="filterPreinstall('vendor',this)" id="tabPreinstallVendor">Vendor</button>
+                        <button class="tab" onclick="filterPreinstall('google',this)">Google</button>
+                        <button class="tab" onclick="filterPreinstall('android',this)">Android</button>
+                    </div>
+                    <div class="table-wrap" style="max-height:300px;">
+                        <table>
+                            <thead><tr><th>App / Package</th><th>Last Updated</th><th>Actions</th></tr></thead>
+                            <tbody id="installPreinstalledTable"></tbody>
+                        </table>
+                    </div>
+                </div>
+                <div class="card">
+                    <h2>🛒 Play Store / User Installed</h2>
+                    <div class="table-wrap" style="max-height:250px;">
+                        <table>
+                            <thead><tr><th>App / Package</th><th>Installed</th><th>Source</th><th>Actions</th></tr></thead>
+                            <tbody id="installUserTable"></tbody>
+                        </table>
+                    </div>
+                </div>
+            </section>
+
+            <!-- Network -->
+            <section id="sec-network" class="hidden">
+                <div class="header">
+                    <h1>🌐 Network Analysis</h1>
+                    <button class="btn btn-primary" onclick="loadNetwork()">🔄 Refresh</button>
+                </div>
+                <div class="stats" id="netStats" style="margin-bottom:15px;">
+                    <div class="stat"><div class="val" id="netTotal">--</div><div class="lbl">Total Connections</div></div>
+                    <div class="stat"><div class="val" id="netChina">--</div><div class="lbl">China/Vendor IPs</div></div>
+                    <div class="stat"><div class="val" id="netGoogle">--</div><div class="lbl">Google IPs</div></div>
+                    <div class="stat"><div class="val" id="netOther">--</div><div class="lbl">Other IPs</div></div>
+                </div>
+                <div class="card">
+                    <h2>🚨 High-Risk Connections</h2>
+                    <div class="table-wrap">
+                        <table>
+                            <thead><tr><th>Remote IP</th><th>Port</th><th>Owner</th><th>Country</th><th>Service</th><th>Risk</th></tr></thead>
+                            <tbody id="highRiskNetTable"></tbody>
+                        </table>
+                    </div>
+                </div>
+                <div class="card">
+                    <h2>📡 All Active Connections</h2>
+                    <div class="tabs" id="netTabs">
+                        <button class="tab active" onclick="filterNet('all',this)">All</button>
+                        <button class="tab" onclick="filterNet('china',this)">China/Vendor</button>
+                        <button class="tab" onclick="filterNet('google',this)">Google</button>
+                        <button class="tab" onclick="filterNet('established',this)">Established</button>
+                        <button class="tab" onclick="filterNet('listening',this)">Listening</button>
+                    </div>
+                    <div class="table-wrap" style="max-height:400px;">
+                        <table>
+                            <thead><tr><th>Local</th><th>Remote</th><th>Owner</th><th>Country</th><th>State</th><th>Risk</th></tr></thead>
+                            <tbody id="netTable"></tbody>
+                        </table>
+                    </div>
+                </div>
+                <div class="card">
+                    <h2>📋 Raw Netstat Output</h2>
+                    <pre id="rawNetstat" class="terminal" style="min-height:200px;max-height:300px;"></pre>
+                </div>
+            </section>
+
+            <!-- DNS Analysis -->
+            <section id="sec-dns" class="hidden">
+                <div class="header">
+                    <h1>🔍 DNS Cache Analysis</h1>
+                    <button class="btn btn-primary" onclick="loadDns()">🔄 Analyze DNS</button>
+                </div>
+                <div class="stats" id="dnsStats" style="margin-bottom:15px;">
+                    <div class="stat"><div class="val" id="dnsCacheTotal">--</div><div class="lbl">Cached Entries</div></div>
+                    <div class="stat"><div class="val" id="dnsVendor">--</div><div class="lbl">Vendor Domains</div></div>
+                    <div class="stat"><div class="val" id="dnsSuspicious">--</div><div class="lbl">Suspicious</div></div>
+                    <div class="stat"><div class="val" id="dnsChina">--</div><div class="lbl">China TLD</div></div>
+                </div>
+                <div class="card">
+                    <h2>⚙️ DNS Configuration</h2>
+                    <div id="dnsConfig">
+                        <div class="loading"><div class="spinner"></div>Click Analyze DNS...</div>
+                    </div>
+                </div>
+                <div class="card">
+                    <h2>🚨 Suspicious DNS Entries (Potential C2)</h2>
+                    <p style="color:var(--text-muted);margin-bottom:10px;font-size:0.85em;">
+                        Domains that may indicate command-and-control, telemetry, or remote management
+                    </p>
+                    <div class="table-wrap">
+                        <table>
+                            <thead><tr><th>Domain</th><th>Resolved IP</th><th>Category</th><th>Reason</th><th>Risk</th></tr></thead>
+                            <tbody id="dnsSuspiciousTable"></tbody>
+                        </table>
+                    </div>
+                </div>
+                <div class="card">
+                    <h2>📡 Vendor Domains</h2>
+                    <p style="color:var(--text-muted);margin-bottom:10px;font-size:0.85em;">
+                        System-level DNS queries to vendor infrastructure
+                    </p>
+                    <div class="table-wrap" style="max-height:300px;">
+                        <table>
+                            <thead><tr><th>Domain</th><th>IP</th><th>Category</th><th>Risk</th></tr></thead>
+                            <tbody id="dnsVendorTable"></tbody>
+                        </table>
+                    </div>
+                </div>
+                <div class="card">
+                    <h2>🏢 Alibaba/Tencent Domains</h2>
+                    <p style="color:var(--text-muted);margin-bottom:10px;font-size:0.85em;">
+                        Chinese cloud infrastructure (often used by vendors)
+                    </p>
+                    <div class="table-wrap" style="max-height:250px;">
+                        <table>
+                            <thead><tr><th>Domain</th><th>IP</th><th>Owner</th><th>Risk</th></tr></thead>
+                            <tbody id="dnsAlibabaTable"></tbody>
+                        </table>
+                    </div>
+                </div>
+                <div class="card">
+                    <h2>🔌 Active Network Connections</h2>
+                    <p style="color:var(--text-muted);margin-bottom:10px;font-size:0.85em;">
+                        Real-time connections from device (identifies what servers your phone is talking to)
+                    </p>
+                    <div class="table-wrap" style="max-height:300px;">
+                        <table>
+                            <thead><tr><th>Remote IP</th><th>Port</th><th>Owner</th><th>Country</th><th>Service</th><th>State</th><th>Risk</th></tr></thead>
+                            <tbody id="dnsActiveConnsTable"></tbody>
+                        </table>
+                    </div>
+                </div>
+                <div class="card">
+                    <h2>📋 All Detected Entries</h2>
+                    <div class="tabs" id="dnsTabs">
+                        <button class="tab active" onclick="filterDns('all',this)">All</button>
+                        <button class="tab" onclick="filterDns('suspicious',this)">Suspicious</button>
+                        <button class="tab" onclick="filterDns('vendor',this)">Vendor</button>
+                        <button class="tab" onclick="filterDns('china',this)">China</button>
+                    </div>
+                    <div class="table-wrap" style="max-height:400px;">
+                        <table>
+                            <thead><tr><th>Domain/IP</th><th>IP</th><th>Owner</th><th>Source</th><th>Risk</th></tr></thead>
+                            <tbody id="dnsAllTable"></tbody>
+                        </table>
+                    </div>
+                </div>
+                <div class="card">
+                    <h2>📋 Raw Network Data</h2>
+                    <pre id="rawDns" class="terminal" style="min-height:200px;max-height:300px;"></pre>
+                </div>
+            </section>
+
+            <!-- Processes -->
+            <section id="sec-processes" class="hidden">
+                <div class="header">
+                    <h1>⚙️ Running Processes</h1>
+                    <button class="btn btn-primary" onclick="loadProcesses()">🔄 Refresh</button>
+                </div>
+                <div class="stats" id="procStats" style="margin-bottom:15px;">
+                    <div class="stat"><div class="val" id="procTotal">--</div><div class="lbl">Total Processes</div></div>
+                    <div class="stat"><div class="val" id="procVendor">--</div><div class="lbl">Vendor</div></div>
+                    <div class="stat"><div class="val" id="procHighRisk">--</div><div class="lbl">High Risk</div></div>
+                    <div class="stat"><div class="val" id="procRunning">--</div><div class="lbl">Running</div></div>
+                    <div class="stat"><div class="val" id="procSleeping">--</div><div class="lbl">Sleeping</div></div>
+                </div>
+                <div class="card">
+                    <h2>🚨 High-Risk Processes</h2>
+                    <p style="color:var(--text-muted);margin-bottom:10px;font-size:0.85em;">
+                        Processes from vendor bloatware, telemetry, or remote control packages
+                    </p>
+                    <div class="table-wrap" style="max-height:250px;">
+                        <table>
+                            <thead><tr><th>PID</th><th>App Name / Package</th><th>Process</th><th>Memory</th><th>State</th><th>Category</th><th>Risk</th></tr></thead>
+                            <tbody id="procHighRiskTable"></tbody>
+                        </table>
+                    </div>
+                </div>
+                <div class="card">
+                    <h2>📊 Top Memory Usage</h2>
+                    <div class="table-wrap" style="max-height:200px;">
+                        <table>
+                            <thead><tr><th>PID</th><th>App Name / Package</th><th>Memory</th><th>CPU</th><th>Category</th></tr></thead>
+                            <tbody id="procTopMemTable"></tbody>
+                        </table>
+                    </div>
+                </div>
+                <div class="card">
+                    <h2>📋 All Processes</h2>
+                    <div class="tabs" id="procTabs">
+                        <button class="tab active" onclick="filterProcs('all',this)">All</button>
+                        <button class="tab" onclick="filterProcs('vendor',this)">Vendor</button>
+                        <button class="tab" onclick="filterProcs('google',this)">Google</button>
+                        <button class="tab" onclick="filterProcs('system',this)">System</button>
+                        <button class="tab" onclick="filterProcs('running',this)">Running</button>
+                    </div>
+                    <input type="text" class="search" placeholder="🔍 Filter by app name, package, or process..." id="procSearch" oninput="searchProcs()">
+                    <div class="table-wrap" style="max-height:400px;">
+                        <table>
+                            <thead><tr><th>PID</th><th>User</th><th>App Name / Package</th><th>Process</th><th>Memory</th><th>State</th><th>Risk</th></tr></thead>
+                            <tbody id="procTable"></tbody>
+                        </table>
+                    </div>
+                </div>
+            </section>
+
+            <!-- CPU Monitor -->
+            <section id="sec-cpu" class="hidden">
+                <div class="header">
+                    <h1>🖥️ CPU Monitor</h1>
+                    <div style="display:flex;gap:10px;align-items:center;">
+                        <label style="font-size:0.85em;color:var(--text-muted);display:flex;align-items:center;gap:5px;">
+                            <input type="checkbox" id="cpuAutoRefresh" onchange="toggleCpuAutoRefresh()"> Auto-refresh (2s)
+                        </label>
+                        <button class="btn btn-primary" onclick="loadCpuInfo()">🔄 Refresh</button>
+                    </div>
+                </div>
+
+                <div style="display:grid;grid-template-columns:1fr 1fr;gap:15px;">
+                    <!-- Left: Core visualization -->
+                    <div class="card">
+                        <h2>⚡ Core Usage</h2>
+                        <div style="display:flex;align-items:center;gap:20px;padding:15px;background:var(--bg-input);border-radius:8px;margin-bottom:15px;">
+                            <div style="position:relative;width:100px;height:100px;">
+                                <svg width="100" height="100" viewBox="0 0 100 100" style="transform:rotate(-90deg);">
+                                    <circle cx="50" cy="50" r="40" fill="none" stroke="var(--border)" stroke-width="10"/>
+                                    <circle id="cpuGauge" cx="50" cy="50" r="40" fill="none" stroke="var(--accent)" stroke-width="10"
+                                            stroke-dasharray="251.2" stroke-dashoffset="251.2" stroke-linecap="round"
+                                            style="transition: stroke-dashoffset 0.5s, stroke 0.5s;"/>
+                                </svg>
+                                <div style="position:absolute;top:50%;left:50%;transform:translate(-50%,-50%);font-size:1.5em;font-weight:bold;" id="cpuOverall">--%</div>
+                            </div>
+                            <div>
+                                <div style="font-size:1.2em;margin-bottom:5px;" id="cpuTemp">Temperature: --</div>
+                                <div style="color:var(--text-muted);font-size:0.9em;" id="cpuGovernor">Governor: --</div>
+                                <div style="color:var(--text-muted);font-size:0.9em;" id="cpuOnline">Online: --</div>
+                            </div>
+                        </div>
+
+                        <!-- CPU Clusters (dynamically populated) -->
+                        <div id="cpuClusters">
+                            <div style="padding:20px;text-align:center;color:var(--text-muted);">
+                                <div class="spinner" style="margin:0 auto 10px;"></div>
+                                Loading CPU information...
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Right: Suggestions and top processes -->
+                    <div>
+                        <div class="card">
+                            <h2>💡 Optimization Suggestions</h2>
+                            <div id="cpuSuggestions">
+                                <div style="padding:12px;background:var(--bg-input);border-radius:6px;border-left:4px solid var(--info);">
+                                    <div style="font-weight:bold;">Loading...</div>
+                                    <div style="font-size:0.9em;color:var(--text-muted);">Fetching CPU information</div>
+                                </div>
+                            </div>
+                        </div>
+
+                        <div class="card">
+                            <h2>📊 Top CPU Consumers</h2>
+                            <div id="topProcs" style="max-height:250px;overflow-y:auto;">
+                                <div style="padding:8px;color:var(--text-muted);">Loading...</div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </section>
+
+            <!-- Security Review -->
+            <section id="sec-security" class="hidden">
+                <div class="header">
+                    <h1>🛡️ Process Security Review</h1>
+                    <button class="btn btn-primary" onclick="runSecurityReview()">🔍 Run Security Scan</button>
+                </div>
+                <div class="stats" id="securityStats">
+                    <div class="stat"><div class="val" id="secTotal">--</div><div class="lbl">Total Processes</div></div>
+                    <div class="stat"><div class="val" id="secRegistered">--</div><div class="lbl">Registered Pkgs</div></div>
+                    <div class="stat" style="background:rgba(218,54,51,0.2)"><div class="val" id="secUnregistered" style="color:var(--danger)">--</div><div class="lbl">Unregistered</div></div>
+                    <div class="stat" style="background:rgba(210,153,34,0.2)"><div class="val" id="secSuspicious" style="color:var(--warning)">--</div><div class="lbl">Suspicious</div></div>
+                    <div class="stat" style="background:rgba(218,54,51,0.3)"><div class="val" id="secCritical" style="color:var(--danger)">--</div><div class="lbl">Critical</div></div>
+                    <div class="stat" style="background:rgba(218,54,51,0.15)"><div class="val" id="secHigh" style="color:var(--warning)">--</div><div class="lbl">High Risk</div></div>
+                </div>
+                <div class="card">
+                    <h2 style="color:var(--danger)">⚠️ Unregistered Processes</h2>
+                    <p style="color:var(--text-muted);margin-bottom:10px;font-size:0.9em;">Processes running from packages not found in the installed package list</p>
+                    <div style="padding:10px;background:rgba(52,152,219,0.15);border:1px solid var(--info);border-radius:6px;margin-bottom:12px;font-size:0.85em;">
+                        <div style="font-weight:bold;margin-bottom:5px;color:var(--info);">ℹ️ Note on False Positives</div>
+                        <p style="color:var(--text-muted);margin:0 0 8px 0;">Some processes may appear unregistered due to naming conventions:</p>
+                        <ul style="color:var(--text-muted);margin:0 0 0 15px;padding:0;">
+                            <li><code>_zygote</code> - App spawn helper (e.g., chrome_zygote)</li>
+                            <li><code>:service</code> - Background service process</li>
+                            <li><code>.persistent</code> - Always-running component</li>
+                            <li><code>.isolated</code> - Sandboxed child process</li>
+                        </ul>
+                        <p style="color:var(--text-muted);margin:8px 0 0 0;">If you recently <strong>uninstalled an app</strong>, its processes may still appear until device restart. This is normal behavior.</p>
+                    </div>
+                    <div id="unregisteredList" class="process-security-list">
+                        <div style="padding:15px;color:var(--text-muted);">Click "Run Security Scan" to analyze running processes</div>
+                    </div>
+                </div>
+                <div class="card">
+                    <h2 style="color:var(--warning)">🔍 Suspicious Processes</h2>
+                    <p style="color:var(--text-muted);margin-bottom:10px;font-size:0.9em;">Processes with suspicious patterns, locations, or behaviors</p>
+                    <div id="suspiciousList" class="process-security-list">
+                        <div style="padding:15px;color:var(--text-muted);">Click "Run Security Scan" to analyze running processes</div>
+                    </div>
+                </div>
+                <div class="card">
+                    <h2>ℹ️ Security Check Criteria</h2>
+                    <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(250px,1fr));gap:15px;margin-top:10px;">
+                        <div style="padding:10px;background:var(--bg-input);border-radius:6px;">
+                            <div style="font-weight:bold;margin-bottom:5px;color:var(--danger);">🔴 Critical</div>
+                            <ul style="font-size:0.85em;color:var(--text-muted);margin-left:15px;">
+                                <li>Running from memory (fileless)</li>
+                                <li>Running from deleted file</li>
+                            </ul>
+                        </div>
+                        <div style="padding:10px;background:var(--bg-input);border-radius:6px;">
+                            <div style="font-weight:bold;margin-bottom:5px;color:var(--warning);">🟠 High</div>
+                            <ul style="font-size:0.85em;color:var(--text-muted);margin-left:15px;">
+                                <li>Running from /data/local/tmp</li>
+                                <li>Running from sdcard</li>
+                                <li>Superuser/su binary</li>
+                                <li>Frida instrumentation</li>
+                            </ul>
+                        </div>
+                        <div style="padding:10px;background:var(--bg-input);border-radius:6px;">
+                            <div style="font-weight:bold;margin-bottom:5px;color:var(--info);">🟡 Warning</div>
+                            <ul style="font-size:0.85em;color:var(--text-muted);margin-left:15px;">
+                                <li>Unregistered package</li>
+                                <li>App running as root</li>
+                                <li>Busybox/Xposed</li>
+                            </ul>
+                        </div>
+                        <div style="padding:10px;background:var(--bg-input);border-radius:6px;">
+                            <div style="font-weight:bold;margin-bottom:5px;color:var(--text-muted);">ℹ️ Info</div>
+                            <ul style="font-size:0.85em;color:var(--text-muted);margin-left:15px;">
+                                <li>Magisk detected</li>
+                                <li>Shell user process</li>
+                            </ul>
+                        </div>
+                    </div>
+                </div>
+            </section>
+
+            <!-- Debloat -->
+            <section id="sec-debloat" class="hidden">
+                <div class="header">
+                    <h1>🗑️ Debloat Manager</h1>
+                </div>
+                <div class="card">
+                    <h2>🚀 Quick Actions</h2>
+                    <div style="display:flex;gap:10px;flex-wrap:wrap;">
+                        <button class="btn btn-danger" onclick="executePhase(1)">Phase 1: Safe Debloat</button>
+                        <button class="btn btn-warning" onclick="executePhase(2)">Phase 2: Disable Cloud</button>
+                        <button class="btn" onclick="executePhase(3)">Phase 3: Advanced</button>
+                    </div>
+                </div>
+                <div class="card">
+                    <h2>📋 Phase 1: Safe Removals</h2>
+                    <p style="color:var(--text-muted);margin-bottom:10px;font-size:0.9em;">Analytics, ads, bloatware - zero risk</p>
+                    <div class="chk-list" id="phase1List"></div>
+                </div>
+                <div class="card">
+                    <h2>📋 Phase 2: Disable Cloud & Remote Control</h2>
+                    <p style="color:var(--text-muted);margin-bottom:10px;font-size:0.9em;">Find Device, cloud sync - disables remote access</p>
+                    <div class="chk-list" id="phase2List"></div>
+                </div>
+                <div class="card">
+                    <h2>📋 Phase 3: Advanced</h2>
+                    <p style="color:var(--text-muted);margin-bottom:10px;font-size:0.9em;">Additional services - may affect some features</p>
+                    <div class="chk-list" id="phase3List"></div>
+                </div>
+            </section>
+
+            <!-- Restore -->
+            <section id="sec-restore" class="hidden">
+                <div class="header">
+                    <h1>↩️ Restore Manager</h1>
+                </div>
+                <div class="card">
+                    <h2>📦 Packages Removed This Session</h2>
+                    <div id="removedList"><p style="color:var(--text-muted);">No packages removed yet.</p></div>
+                </div>
+                <div class="card">
+                    <h2>🔓 Currently Disabled Packages</h2>
+                    <div id="disabledList"><div class="loading"><div class="spinner"></div>Loading...</div></div>
+                </div>
+                <div class="card">
+                    <h2>⚠️ Restore All</h2>
+                    <button class="btn btn-warning" onclick="restoreAll()">Restore All Removed Packages</button>
+                </div>
+            </section>
+
+            <!-- Wallpaper -->
+            <section id="sec-wallpaper" class="hidden">
+                <div class="header">
+                    <h1>🖼️ Wallpaper Manager</h1>
+                    <button class="btn" onclick="loadDeviceImages()">🔄 Scan Device Images</button>
+                </div>
+                <p style="color:var(--text-muted);margin-bottom:15px;">
+                    Set custom wallpapers for your home and lock screens via ADB.
+                </p>
+
+                <div class="card">
+                    <h2>📤 Upload Wallpaper from PC</h2>
+                    <p style="color:var(--text-muted);margin-bottom:15px;font-size:0.85em;">
+                        Select an image from your computer to set as wallpaper on the device.
+                    </p>
+                    <div style="display:flex;gap:15px;align-items:flex-start;flex-wrap:wrap;">
+                        <div style="flex:1;min-width:250px;">
+                            <div id="wallpaperPreview" style="width:100%;height:200px;background:var(--bg-input);border:2px dashed var(--border);border-radius:8px;display:flex;align-items:center;justify-content:center;cursor:pointer;overflow:hidden;" onclick="document.getElementById('wallpaperInput').click()">
+                                <span style="color:var(--text-muted);">Click to select image or drag & drop</span>
+                            </div>
+                            <input type="file" id="wallpaperInput" accept="image/*" style="display:none" onchange="previewWallpaper(this)">
+                        </div>
+                        <div style="min-width:200px;">
+                            <div style="margin-bottom:15px;">
+                                <label style="display:block;margin-bottom:8px;font-weight:500;">Apply to:</label>
+                                <select id="wallpaperTarget" class="search" style="margin:0;">
+                                    <option value="both">Both (Home & Lock)</option>
+                                    <option value="home">Home Screen Only</option>
+                                    <option value="lock">Lock Screen Only</option>
+                                </select>
+                            </div>
+                            <button class="btn btn-primary" style="width:100%;" onclick="uploadAndSetWallpaper()" id="btnSetWallpaper" disabled>
+                                🎨 Set Wallpaper
+                            </button>
+                            <div id="wallpaperStatus" style="margin-top:10px;font-size:0.85em;"></div>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="card">
+                    <h2>📱 Images on Device</h2>
+                    <p style="color:var(--text-muted);margin-bottom:10px;font-size:0.85em;">
+                        Select from images already on your phone to use as wallpaper.
+                    </p>
+                    <div class="tabs" id="imageDirTabs">
+                        <button class="tab active" onclick="filterImages('all',this)">All</button>
+                        <button class="tab" onclick="filterImages('camera',this)">Camera</button>
+                        <button class="tab" onclick="filterImages('pictures',this)">Pictures</button>
+                        <button class="tab" onclick="filterImages('download',this)">Downloads</button>
+                    </div>
+                    <div id="deviceImagesList" style="display:grid;grid-template-columns:repeat(auto-fill,minmax(150px,1fr));gap:10px;max-height:400px;overflow-y:auto;padding:10px 0;">
+                        <div class="loading"><div class="spinner"></div>Click "Scan Device Images" to load...</div>
+                    </div>
+                </div>
+
+                <div class="card">
+                    <h2>ℹ️ Current Wallpaper Info</h2>
+                    <pre id="wallpaperInfo" class="terminal" style="min-height:100px;max-height:200px;"></pre>
+                    <button class="btn" style="margin-top:10px;" onclick="loadWallpaperInfo()">Refresh Info</button>
+                </div>
+            </section>
+
+            <!-- Terminal -->
+            <section id="sec-terminal" class="hidden">
+                <div class="header">
+                    <h1>💻 ADB Shell</h1>
+                    <button class="btn" onclick="clearTerminal()">Clear</button>
+                </div>
+                <div class="card" style="padding:0;">
+                    <div class="terminal" id="termOutput"></div>
+                    <div style="padding:10px;border-top:1px solid var(--border);display:flex;gap:10px;">
+                        <input type="text" id="termInput" class="search" style="margin:0;flex:1;" placeholder="Enter shell command..." onkeypress="if(event.key==='Enter')runTermCmd()">
+                        <button class="btn btn-primary" onclick="runTermCmd()">Run</button>
+                    </div>
+                </div>
+            </section>
+        </main>
+
+        <!-- Log Panel -->
+        <aside class="log-panel">
+            <div class="log-header">
+                <h3>📋 Activity Log</h3>
+                <div>
+                    <button class="btn" onclick="clearLog()">Clear</button>
+                    <button class="btn" onclick="exportLog()">Export</button>
+                </div>
+            </div>
+            <div class="log-content" id="logContent"></div>
+            <div class="cmd-input">
+                <input type="text" placeholder="Quick command..." id="quickCmd" onkeypress="if(event.key==='Enter')runQuickCmd()">
+            </div>
+        </aside>
+    </div>
+
+    <script>
+        const API = 'http://localhost:3000';
+        let connected = false;
+        let allPackages = [];
+        let allProcesses = [];
+        let removedPackages = [];
+
+        // Vendor detection helpers
+        function detectVendor(device) {
+            if (!device) return 'generic';
+            const mfr = (device.manufacturer || '').toLowerCase();
+            const brand = (device.brand || '').toLowerCase();
+
+            if (mfr.includes('xiaomi') || brand.includes('redmi') || brand.includes('poco') || brand.includes('xiaomi')) {
+                return 'xiaomi';
+            } else if (mfr.includes('oppo') || mfr.includes('realme') || brand.includes('oppo') || brand.includes('realme')) {
+                return 'oppo';
+            } else if (mfr.includes('oneplus') || brand.includes('oneplus')) {
+                return 'oneplus';
+            } else if (mfr.includes('samsung') || brand.includes('samsung')) {
+                return 'samsung';
+            } else if (mfr.includes('google') || brand.includes('pixel')) {
+                return 'google';
+            }
+            return 'generic';
+        }
+
+        function getVendorLabel(vendor) {
+            const labels = {
+                xiaomi: 'Xiaomi/MIUI',
+                oppo: 'Oppo/ColorOS',
+                oneplus: 'OnePlus',
+                samsung: 'Samsung',
+                google: 'Google',
+                generic: 'Vendor Apps'
+            };
+            return labels[vendor] || 'Vendor Apps';
+        }
+
+        function getVendorPackagePattern(vendor) {
+            const patterns = {
+                xiaomi: /xiaomi|miui|\.mi\./i,
+                oppo: /oppo|coloros|heytap|nearme|oplus|realme/i,
+                oneplus: /oneplus/i,
+                samsung: /samsung|\.sec\./i,
+                google: /google/i,
+                generic: /./
+            };
+            return patterns[vendor] || patterns.generic;
+        }
+
+        // Debloat lists
+        const phase1 = [
+            {pkg:'com.facebook.appmanager',name:'Facebook App Manager'},
+            {pkg:'com.facebook.system',name:'Facebook Installer'},
+            {pkg:'com.facebook.services',name:'Facebook Services'},
+            {pkg:'com.miui.msa.global',name:'MIUI System Ads'},
+            {pkg:'com.miui.analytics',name:'MIUI Analytics'},
+            {pkg:'com.xiaomi.mipicks',name:'GetApps Store'},
+            {pkg:'com.xiaomi.joyose',name:'Joyose'},
+            {pkg:'com.xiaomi.discover',name:'Xiaomi Discover'},
+            {pkg:'com.miui.android.fashiongallery',name:'Wallpaper Carousel'},
+            {pkg:'com.xiaomi.glgm',name:'Xiaomi Games'},
+            {pkg:'com.miui.thirdappassistant',name:'Third Party Assistant'},
+            {pkg:'com.mi.globalbrowser',name:'Mi Browser'},
+            {pkg:'com.miui.videoplayer',name:'Mi Video'},
+            {pkg:'com.miui.player',name:'Mi Music'},
+            {pkg:'com.xiaomi.midrop',name:'Mi Drop'},
+            {pkg:'com.miui.yellowpage',name:'Yellow Pages'},
+            {pkg:'com.xiaomi.scanner',name:'Mi Scanner'},
+            {pkg:'com.miui.bugreport',name:'Bug Report'},
+            {pkg:'com.amazon.appmanager',name:'Amazon App Manager'}
+        ];
+        // Note: Android 15/HyperOS blocks 'disable-user' for system packages
+        // Using 'uninstall' instead - can be restored with 'cmd package install-existing'
+        const phase2 = [
+            {pkg:'com.xiaomi.finddevice',name:'Find Device (Remote Lock/Wipe)',action:'uninstall'},
+            {pkg:'com.miui.cloudservice',name:'Mi Cloud Service',action:'uninstall'},
+            {pkg:'com.miui.cloudbackup',name:'Mi Cloud Backup',action:'uninstall'},
+            {pkg:'com.miui.micloudsync',name:'Mi Cloud Sync',action:'uninstall'},
+            {pkg:'com.xiaomi.account',name:'Mi Account',action:'uninstall'},
+            {pkg:'com.xiaomi.xmsf',name:'Xiaomi Service Framework (Push)',action:'uninstall'}
+        ];
+        const phase3 = [
+            {pkg:'com.miui.touchassistant',name:'Quick Ball'},
+            {pkg:'com.xiaomi.payment',name:'Mi Pay'},
+            {pkg:'com.miui.compass',name:'Compass'},
+            {pkg:'com.miui.mediaeditor',name:'Media Editor'},
+            {pkg:'com.xiaomi.mirror',name:'Mirror'}
+        ];
+
+        // Initialize
+        document.addEventListener('DOMContentLoaded', () => {
+            renderDebloatLists();
+            log('Dashboard ready. Connect to your device to begin.', 'info');
+        });
+
+        function renderDebloatLists() {
+            // Get set of installed packages for quick lookup
+            const installedPkgs = new Set(allPackages.map(p => p.pkg));
+
+            // Helper to render a phase list item
+            const renderItem = (p, phaseNum, defaultChecked = true) => {
+                const isInstalled = installedPkgs.has(p.pkg);
+                const statusTag = isInstalled
+                    ? '<span class="tag tag-danger" style="margin-left:8px;">INSTALLED</span>'
+                    : '<span class="tag tag-low" style="margin-left:8px;">REMOVED</span>';
+                const actionTag = p.action ? `<span class="tag tag-info" style="margin-left:4px;">${p.action}</span>` : '';
+                const checkbox = isInstalled
+                    ? `<input type="checkbox" id="p${phaseNum}_${p.pkg}" ${defaultChecked ? 'checked' : ''}>`
+                    : `<input type="checkbox" id="p${phaseNum}_${p.pkg}" disabled>`;
+                const itemClass = isInstalled ? 'chk-item' : 'chk-item' + ' style="opacity:0.5;"';
+                const infoBtn = `<button class="act-btn act-info" onclick="event.stopPropagation();showDependencies('${p.pkg}')" title="View dependencies" style="padding:2px 6px;font-size:0.7em;margin-left:6px;">ℹ️</button>`;
+
+                return `<div class="${itemClass}">
+                    ${checkbox}
+                    <span class="name">${p.name}</span>
+                    <span class="id">${p.pkg}</span>
+                    ${infoBtn}${statusTag}${actionTag}
+                </div>`;
+            };
+
+            // Count installed vs removed for each phase
+            const phase1Installed = phase1.filter(p => installedPkgs.has(p.pkg)).length;
+            const phase2Installed = phase2.filter(p => installedPkgs.has(p.pkg)).length;
+            const phase3Installed = phase3.filter(p => installedPkgs.has(p.pkg)).length;
+
+            document.getElementById('phase1List').innerHTML =
+                `<div style="margin-bottom:10px;font-size:0.85em;color:var(--text-muted);">
+                    ${phase1Installed}/${phase1.length} packages still installed
+                </div>` +
+                phase1.map(p => renderItem(p, 1, true)).join('');
+
+            document.getElementById('phase2List').innerHTML =
+                `<div style="margin-bottom:10px;font-size:0.85em;color:var(--text-muted);">
+                    ${phase2Installed}/${phase2.length} packages still installed
+                </div>` +
+                phase2.map(p => renderItem(p, 2, true)).join('');
+
+            document.getElementById('phase3List').innerHTML =
+                `<div style="margin-bottom:10px;font-size:0.85em;color:var(--text-muted);">
+                    ${phase3Installed}/${phase3.length} packages still installed
+                </div>` +
+                phase3.map(p => renderItem(p, 3, false)).join('');
+        }
+
+        // API calls
+        async function api(action, params = {}) {
+            const url = new URL(`${API}/${action}`);
+            Object.entries(params).forEach(([k,v]) => url.searchParams.set(k, v));
+            const res = await fetch(url);
+            return res.json();
+        }
+
+        async function apiPost(action, data) {
+            const res = await fetch(`${API}/${action}`, {
+                method: 'POST',
+                headers: {'Content-Type': 'application/json'},
+                body: JSON.stringify(data)
+            });
+            return res.json();
+        }
+
+        // Connection
+        async function connect() {
+            const ip = document.getElementById('ipInput').value;
+            log(`Connecting to ${ip}...`, 'info');
+            updateConn('connecting');
+
+            try {
+                const res = await api('connect', {ip});
+                if (res.success) {
+                    connected = true;
+                    updateConn('connected', ip);
+                    log(`Connected to ${ip}`, 'success', `adb connect ${ip}`);
+                    fullScan();
+                } else {
+                    throw new Error(res.error || 'Connection failed');
+                }
+            } catch (e) {
+                connected = false;
+                updateConn('error');
+                log(`Connection failed: ${e.message}`, 'error');
+            }
+        }
+
+        function updateConn(status, ip = '') {
+            const box = document.getElementById('connBox');
+            const dot = document.getElementById('connDot');
+            const text = document.getElementById('connText');
+            const info = document.getElementById('connInfo');
+
+            if (status === 'connected') {
+                box.className = 'conn-box conn-ok';
+                dot.className = 'dot on';
+                text.textContent = 'Connected';
+                info.innerHTML = `📱 ${ip}`;
+            } else if (status === 'connecting') {
+                text.textContent = 'Connecting...';
+            } else {
+                box.className = 'conn-box conn-err';
+                dot.className = 'dot off';
+                text.textContent = 'Disconnected';
+                info.innerHTML = '';
+            }
+        }
+
+        // Full scan
+        async function fullScan() {
+            if (!connected) { log('Not connected', 'error'); return; }
+            log('Starting full device scan...', 'info');
+
+            try {
+                const data = await api('fullScan');
+
+                // Check for API error
+                if (data.error) {
+                    throw new Error(data.error);
+                }
+
+                // Check device data exists
+                if (!data.device || data.device.error) {
+                    document.getElementById('deviceInfo').innerHTML = `
+                        <div style="color:var(--danger);padding:10px;">Device not responding. Try reconnecting.</div>
+                    `;
+                    log('Device not responding', 'error');
+                    return;
+                }
+
+                // Device info - now vendor agnostic
+                const vendorUILabel = data.device.vendorUI || 'ROM';
+                const vendorUIVersion = data.device.vendorUIVersion || 'Stock Android';
+                document.getElementById('deviceInfo').innerHTML = `
+                    <table>
+                    <tr><td><strong>Model</strong></td><td>${data.device.model || 'Unknown'}</td></tr>
+                    <tr><td><strong>Manufacturer</strong></td><td>${data.device.manufacturer || 'Unknown'}</td></tr>
+                    <tr><td><strong>Android</strong></td><td>${data.device.android || 'Unknown'}</td></tr>
+                    <tr><td><strong>${vendorUILabel}</strong></td><td>${vendorUIVersion}</td></tr>
+                    <tr><td><strong>Build</strong></td><td>${data.device.build || 'Unknown'}</td></tr>
+                    </table>
+                `;
+
+                // Store device vendor for later use
+                window.deviceVendor = detectVendor(data.device);
+
+                // Stats (with safe defaults)
+                const pkgData = data.packages || { total: 0, vendor: 0, disabled: 0, list: [] };
+                const netData = data.network || { connections: [], suspicious: [] };
+                const procData = data.processes || { count: 0, list: [] };
+
+                // Update vendor label based on device
+                document.getElementById('lblVendor').textContent = getVendorLabel(window.deviceVendor);
+
+                document.getElementById('statTotal').textContent = pkgData.total;
+                document.getElementById('statVendor').textContent = pkgData.vendor || pkgData.xiaomi || 0;
+                document.getElementById('statDisabled').textContent = pkgData.disabled;
+                document.getElementById('statConns').textContent = netData.connections.length;
+                document.getElementById('statSuspicious').textContent = netData.suspicious.length;
+                document.getElementById('statProcs').textContent = procData.count;
+
+                // Store packages
+                allPackages = pkgData.list || [];
+                renderPackages(allPackages);
+
+                // High risk
+                const highRisk = [
+                    {pkg:'com.xiaomi.finddevice',risk:'critical',desc:'Remote lock/wipe'},
+                    {pkg:'com.xiaomi.xmsf',risk:'high',desc:'Reads all notifications'},
+                    {pkg:'com.miui.analytics',risk:'high',desc:'Location tracking'},
+                    {pkg:'com.xiaomi.account',risk:'high',desc:'SMS access'},
+                    {pkg:'com.miui.securitycenter',risk:'high',desc:'System control'}
+                ];
+                // Check which high-risk packages are actually installed
+                const installedPkgs = new Set(allPackages.map(p => p.pkg));
+                document.getElementById('highRisk').innerHTML = `<table>
+                    ${highRisk.map(r => {
+                        const isInstalled = installedPkgs.has(r.pkg);
+                        const statusTag = isInstalled
+                            ? '<span class="tag tag-danger">INSTALLED</span>'
+                            : '<span class="tag tag-low">REMOVED</span>';
+                        const infoBtn = `<button class="act-btn act-info" onclick="showDependencies('${r.pkg}')" title="View dependencies">ℹ️</button>`;
+                        const actionBtn = isInstalled
+                            ? `<button class="act-btn act-remove" onclick="removePkg('${r.pkg}')">Remove</button>`
+                            : `<button class="act-btn act-restore" onclick="restorePkg('${r.pkg}')">Restore</button>`;
+                        return `<tr><td class="mono">${r.pkg}</td><td><span class="tag tag-${r.risk}">${r.risk.toUpperCase()}</span></td><td>${r.desc}</td>
+                        <td>${statusTag}</td><td>${infoBtn} ${actionBtn}</td></tr>`;
+                    }).join('')}
+                </table>`;
+
+                // Suspicious connections
+                if (netData.suspicious.length > 0) {
+                    document.getElementById('suspiciousNet').innerHTML = `<table>
+                        ${netData.suspicious.map(c => `<tr><td class="mono">${c.local || ''}</td><td class="mono">${c.remote || ''}</td><td>${c.state || ''}</td><td><span class="tag tag-high">HIGH</span></td></tr>`).join('')}
+                    </table>`;
+                } else {
+                    document.getElementById('suspiciousNet').innerHTML = '<p style="color:var(--text-muted);">No suspicious connections detected.</p>';
+                }
+
+                // Store processes
+                allProcesses = procData.list || [];
+
+                log('Full scan complete', 'success');
+            } catch (e) {
+                log(`Scan failed: ${e.message}`, 'error');
+            }
+        }
+
+        // Packages
+        async function loadPackages() {
+            log('Loading packages...', 'info', 'adb shell pm list packages');
+            try {
+                const data = await api('listPackages');
+                allPackages = data.packages;
+                renderPackages(allPackages);
+                log(`Loaded ${data.count} packages`, 'success');
+            } catch (e) {
+                log(`Failed: ${e.message}`, 'error');
+            }
+        }
+
+        function renderPackages(pkgs) {
+            const risk = pkg => {
+                if (pkg.includes('finddevice')) return 'critical';
+                if (pkg.includes('analytics') || pkg.includes('xmsf') || pkg.includes('account')) return 'high';
+                if (pkg.includes('xiaomi') || pkg.includes('miui')) return 'medium';
+                return 'low';
+            };
+            document.getElementById('pkgTable').innerHTML = pkgs.slice(0,200).map(p => `
+                <tr>
+                    <td>
+                        <div style="font-weight:500;">${p.displayName || ''}</div>
+                        <div class="mono" style="font-size:0.8em;color:var(--text-muted);">${p.pkg}</div>
+                    </td>
+                    <td><span class="tag tag-${risk(p.pkg)}">${risk(p.pkg).toUpperCase()}</span></td>
+                    <td>
+                        <button class="act-btn act-info" onclick="showDependencies('${p.pkg}')" title="View dependencies">ℹ️ Info</button>
+                        <button class="act-btn act-disable" onclick="disablePkg('${p.pkg}')">Disable</button>
+                        <button class="act-btn act-remove" onclick="removePkg('${p.pkg}')">Remove</button>
+                    </td>
+                </tr>
+            `).join('');
+        }
+
+        function filterPkgs(type, el) {
+            document.querySelectorAll('#pkgTabs .tab').forEach(t => t.classList.remove('active'));
+            el.classList.add('active');
+            let filtered = allPackages;
+            if (type === 'vendor') filtered = allPackages.filter(p => p.pkg.match(/xiaomi|miui|\.mi\.|oppo|coloros|realme|oneplus|oxygen|samsung|sec\.|bixby/i));
+            if (type === 'google') filtered = allPackages.filter(p => p.pkg.includes('google'));
+            if (type === 'disabled') loadDisabled();
+            else renderPackages(filtered);
+        }
+
+        function searchPkgs() {
+            const q = document.getElementById('pkgSearch').value.toLowerCase();
+            renderPackages(allPackages.filter(p =>
+                p.pkg.toLowerCase().includes(q) ||
+                p.displayName?.toLowerCase().includes(q)
+            ));
+        }
+
+        async function loadDisabled() {
+            const data = await api('listPackages', {type: 'disabled'});
+            renderPackages(data.packages);
+            document.getElementById('disabledList').innerHTML = data.packages.length ? `<table>
+                ${data.packages.map(p => `<tr><td class="mono">${p.pkg}</td><td><button class="act-btn act-enable" onclick="enablePkg('${p.pkg}')">Enable</button></td></tr>`).join('')}
+            </table>` : '<p style="color:var(--text-muted);">No disabled packages.</p>';
+        }
+
+        // Install Origins
+        let installOriginData = null;
+        let preinstalledPackages = [];
+        let installProgressInterval = null;
+
+        async function loadInstallOrigins() {
+            log('Analyzing package install origins...', 'info');
+
+            // Show progress bar
+            const progressEl = document.getElementById('installProgress');
+            const progressBar = document.getElementById('installProgressBar');
+            const progressText = document.getElementById('installProgressText');
+            const progressDetail = document.getElementById('installProgressDetail');
+            progressEl.classList.remove('hidden');
+            progressBar.style.width = '0%';
+            progressText.textContent = 'Analyzing packages...';
+            progressDetail.textContent = 'Starting analysis...';
+
+            // Poll server log for progress updates
+            let lastLogCount = 0;
+            installProgressInterval = setInterval(async () => {
+                try {
+                    const logData = await api('getLog');
+                    const logs = logData.log || [];
+                    // Look for progress messages
+                    for (let i = logs.length - 1; i >= Math.max(0, logs.length - 10); i--) {
+                        const entry = logs[i];
+                        if (entry.message && entry.message.includes('Analyzing packages:')) {
+                            const match = entry.message.match(/(\d+)\/(\d+)\s+\((\d+)%\)/);
+                            if (match) {
+                                const [, current, total, pct] = match;
+                                progressBar.style.width = pct + '%';
+                                progressDetail.textContent = `${current} / ${total} packages`;
+                                progressText.textContent = `Analyzing packages... ${pct}%`;
+                            }
+                            break;
+                        }
+                    }
+                } catch (e) {
+                    // Ignore polling errors
+                }
+            }, 500);
+
+            try {
+                const data = await api('packageInstallInfo');
+                installOriginData = data;
+
+                // Stop polling and hide progress
+                clearInterval(installProgressInterval);
+                progressEl.classList.add('hidden');
+
+                // Update stats
+                document.getElementById('installTotal').textContent = data.summary?.total || 0;
+                document.getElementById('installPreinstalled').textContent = data.summary?.preInstalled || 0;
+                document.getElementById('installUpdates').textContent = data.summary?.systemUpdates || 0;
+                document.getElementById('installPlayStore').textContent = data.summary?.playStore || 0;
+                document.getElementById('installManual').textContent = (data.summary?.manual || 0) + (data.summary?.xiaomiStore || 0);
+
+                // Get display names from allPackages
+                const pkgNames = {};
+                allPackages.forEach(p => pkgNames[p.pkg] = p.displayName);
+
+                // Render system updates table (apps pushed via OTA)
+                const systemUpdates = data.systemUpdates || [];
+                document.getElementById('installUpdatesTable').innerHTML = systemUpdates.length > 0
+                    ? systemUpdates.map(p => {
+                        const displayName = pkgNames[p.pkg] || p.pkg.split('.').pop();
+                        const isXiaomi = p.pkg.match(/xiaomi|miui|\.mi\./i);
+                        return `
+                            <tr>
+                                <td>
+                                    <div style="font-weight:500;">${displayName}</div>
+                                    <div class="mono" style="font-size:0.75em;color:var(--text-muted);">${p.pkg}</div>
+                                </td>
+                                <td style="font-size:0.85em;">${p.firstInstall || 'Unknown'}</td>
+                                <td><span class="tag tag-${isXiaomi ? 'warning' : 'info'}">${p.installSource}</span></td>
+                                <td>
+                                    <button class="act-btn act-info" onclick="showDependencies('${p.pkg}')" title="View dependencies">ℹ️</button>
+                                    <button class="act-btn act-remove" onclick="removePkg('${p.pkg}')">Remove</button>
+                                </td>
+                            </tr>
+                        `;
+                    }).join('')
+                    : '<tr><td colspan="4" style="text-align:center;color:var(--accent);">No apps pushed via system updates</td></tr>';
+
+                // Store and render pre-installed
+                preinstalledPackages = data.preInstalled || [];
+                renderPreinstalled(preinstalledPackages, pkgNames);
+
+                // Render user installed (Play Store + Manual + Xiaomi Store)
+                const userInstalled = [...(data.playStore || []), ...(data.manual || []), ...(data.xiaomiStore || [])];
+                document.getElementById('installUserTable').innerHTML = userInstalled.length > 0
+                    ? userInstalled.map(p => {
+                        const displayName = pkgNames[p.pkg] || p.pkg.split('.').pop();
+                        const sourceClass = p.installType === 'play-store' ? 'low' : p.installType === 'xiaomi-store' ? 'warning' : 'info';
+                        return `
+                            <tr>
+                                <td>
+                                    <div style="font-weight:500;">${displayName}</div>
+                                    <div class="mono" style="font-size:0.75em;color:var(--text-muted);">${p.pkg}</div>
+                                </td>
+                                <td style="font-size:0.85em;">${p.firstInstall || 'Unknown'}</td>
+                                <td><span class="tag tag-${sourceClass}">${p.installSource}</span></td>
+                                <td>
+                                    <button class="act-btn act-info" onclick="showDependencies('${p.pkg}')" title="View dependencies">ℹ️</button>
+                                    <button class="act-btn act-remove" onclick="removePkg('${p.pkg}')">Remove</button>
+                                </td>
+                            </tr>
+                        `;
+                    }).join('')
+                    : '<tr><td colspan="4" style="text-align:center;color:var(--text-muted);">No user-installed apps found</td></tr>';
+
+                log(`Install origin analysis complete: ${systemUpdates.length} from updates, ${preinstalledPackages.length} pre-installed`,
+                    systemUpdates.length > 0 ? 'warning' : 'success');
+            } catch (e) {
+                // Stop polling and hide progress on error
+                clearInterval(installProgressInterval);
+                document.getElementById('installProgress').classList.add('hidden');
+                log(`Error analyzing install origins: ${e.message}`, 'error');
+            }
+        }
+
+        function renderPreinstalled(packages, pkgNames) {
+            document.getElementById('installPreinstalledTable').innerHTML = packages.length > 0
+                ? packages.map(p => {
+                    const displayName = pkgNames[p.pkg] || p.pkg.split('.').pop();
+                    const isXiaomi = p.pkg.match(/xiaomi|miui|\.mi\./i);
+                    const isGoogle = p.pkg.includes('google');
+                    const tagClass = isXiaomi ? 'warning' : isGoogle ? 'info' : 'low';
+                    return `
+                        <tr>
+                            <td>
+                                <div style="font-weight:500;">${displayName}</div>
+                                <div class="mono" style="font-size:0.75em;color:var(--text-muted);">${p.pkg}</div>
+                            </td>
+                            <td style="font-size:0.85em;">${p.lastUpdate !== p.firstInstall ? p.lastUpdate : 'Never'}</td>
+                            <td>
+                                <button class="act-btn act-info" onclick="showDependencies('${p.pkg}')" title="View dependencies">ℹ️</button>
+                                <button class="act-btn act-remove" onclick="removePkg('${p.pkg}')">Remove</button>
+                            </td>
+                        </tr>
+                    `;
+                }).join('')
+                : '<tr><td colspan="3" style="text-align:center;color:var(--text-muted);">No pre-installed apps found</td></tr>';
+        }
+
+        function filterPreinstall(type, el) {
+            document.querySelectorAll('#preinstallTabs .tab').forEach(t => t.classList.remove('active'));
+            el.classList.add('active');
+
+            const pkgNames = {};
+            allPackages.forEach(p => pkgNames[p.pkg] = p.displayName);
+
+            let filtered = preinstalledPackages;
+            if (type === 'vendor') {
+                filtered = preinstalledPackages.filter(p => p.pkg.match(/xiaomi|miui|\.mi\.|oppo|coloros|realme|oneplus|oxygen|samsung|sec\.|bixby/i));
+            } else if (type === 'google') {
+                filtered = preinstalledPackages.filter(p => p.pkg.includes('google'));
+            } else if (type === 'android') {
+                filtered = preinstalledPackages.filter(p => p.pkg.startsWith('com.android.') || p.pkg.startsWith('android.'));
+            }
+            renderPreinstalled(filtered, pkgNames);
+        }
+
+        // Package actions
+        async function removePkg(pkg) {
+            log(`Removing ${pkg}...`, 'warning', `adb shell pm uninstall -k --user 0 ${pkg}`);
+            try {
+                const res = await api('uninstallPackage', {pkg});
+                if (res.success && res.verified && res.alreadyRemoved) {
+                    if (!removedPackages.includes(pkg)) removedPackages.push(pkg);
+                    updateRemovedList();
+                    log(`✓ Already removed: ${pkg} was previously uninstalled`, 'success');
+                } else if (res.success && res.verified) {
+                    if (!removedPackages.includes(pkg)) removedPackages.push(pkg);
+                    updateRemovedList();
+                    log(`✓ Removed & Verified: ${pkg}`, 'success');
+                } else if (res.success) {
+                    if (!removedPackages.includes(pkg)) removedPackages.push(pkg);
+                    updateRemovedList();
+                    log(`⚠ Removed but unverified: ${pkg} - ${res.verificationStatus}`, 'warning');
+                } else {
+                    log(`✗ Failed: ${pkg} - ${res.message}`, 'error');
+                }
+            } catch (e) {
+                log(`Error: ${e.message}`, 'error');
+            }
+        }
+
+        async function disablePkg(pkg) {
+            log(`Disabling ${pkg}...`, 'warning', `adb shell pm disable-user --user 0 ${pkg}`);
+            try {
+                const res = await api('disablePackage', {pkg});
+                log(`Disabled ${pkg}`, 'success');
+            } catch (e) {
+                log(`Error: ${e.message}`, 'error');
+            }
+        }
+
+        async function enablePkg(pkg) {
+            log(`Enabling ${pkg}...`, 'info', `adb shell pm enable ${pkg}`);
+            try {
+                await api('enablePackage', {pkg});
+                log(`Enabled ${pkg}`, 'success');
+            } catch (e) {
+                log(`Error: ${e.message}`, 'error');
+            }
+        }
+
+        async function restorePkg(pkg) {
+            log(`Restoring ${pkg}...`, 'info', `adb shell cmd package install-existing ${pkg}`);
+            try {
+                const res = await api('restorePackage', {pkg});
+                if (res.success && res.verified) {
+                    removedPackages = removedPackages.filter(p => p !== pkg);
+                    updateRemovedList();
+                    log(`✓ Restored & Verified: ${pkg}`, 'success');
+                } else if (res.success) {
+                    removedPackages = removedPackages.filter(p => p !== pkg);
+                    updateRemovedList();
+                    log(`⚠ Restored but unverified: ${pkg} - ${res.verificationStatus}`, 'warning');
+                } else {
+                    log(`✗ Failed to restore: ${pkg} - ${res.message}`, 'error');
+                }
+            } catch (e) {
+                log(`Error: ${e.message}`, 'error');
+            }
+        }
+
+        function updateRemovedList() {
+            const el = document.getElementById('removedList');
+            if (removedPackages.length === 0) {
+                el.innerHTML = '<p style="color:var(--text-muted);">No packages removed yet.</p>';
+            } else {
+                el.innerHTML = `<table>${removedPackages.map(p => `
+                    <tr><td class="mono">${p}</td><td><button class="act-btn act-restore" onclick="restorePkg('${p}')">Restore</button></td></tr>
+                `).join('')}</table>`;
+            }
+        }
+
+        async function restoreAll() {
+            log('Restoring all packages...', 'warning');
+            for (const pkg of [...removedPackages]) {
+                await restorePkg(pkg);
+            }
+        }
+
+        // Network
+        let allConnections = [];
+
+        async function loadNetwork() {
+            log('Scanning network...', 'info', 'adb shell netstat -tlpn');
+            try {
+                const data = await api('netstat');
+                allConnections = data.connections || [];
+
+                // Calculate stats
+                const chinaConns = allConnections.filter(c => c.ipInfo?.country === 'CN' || c.ipInfo?.owner?.includes('Xiaomi') || c.ipInfo?.owner?.includes('Alibaba'));
+                const googleConns = allConnections.filter(c => c.ipInfo?.owner === 'Google');
+                const highRisk = allConnections.filter(c => c.ipInfo?.risk === 'high' || c.portInfo?.risk === 'high');
+
+                document.getElementById('netTotal').textContent = allConnections.length;
+                document.getElementById('netChina').textContent = chinaConns.length;
+                document.getElementById('netGoogle').textContent = googleConns.length;
+                document.getElementById('netOther').textContent = allConnections.length - chinaConns.length - googleConns.length;
+
+                // High-risk connections table
+                document.getElementById('highRiskNetTable').innerHTML = highRisk.length > 0
+                    ? highRisk.map(c => `
+                        <tr>
+                            <td class="mono">${c.remoteIp || '-'}</td>
+                            <td class="mono">${c.remotePort || '-'}</td>
+                            <td>${c.ipInfo?.owner || 'Unknown'}</td>
+                            <td><span class="tag tag-${c.ipInfo?.country === 'CN' ? 'danger' : 'info'}">${c.ipInfo?.country || '??'}</span></td>
+                            <td>${c.portInfo?.service || c.ipInfo?.desc || '-'}</td>
+                            <td><span class="tag tag-high">HIGH</span></td>
+                        </tr>
+                    `).join('')
+                    : '<tr><td colspan="6" style="text-align:center;color:var(--text-muted);">No high-risk connections detected</td></tr>';
+
+                // All connections table
+                renderConnections(allConnections);
+                document.getElementById('rawNetstat').textContent = data.raw;
+                log(`Network scan complete: ${allConnections.length} connections, ${chinaConns.length} to China/Xiaomi`, 'success');
+            } catch (e) {
+                log(`Error: ${e.message}`, 'error');
+            }
+        }
+
+        function renderConnections(conns) {
+            document.getElementById('netTable').innerHTML = conns.map(c => {
+                const risk = c.ipInfo?.risk || 'unknown';
+                const riskClass = risk === 'high' ? 'high' : risk === 'medium' ? 'medium' : risk === 'low' ? 'low' : 'info';
+                return `
+                    <tr>
+                        <td class="mono" style="font-size:0.8em;">${c.local || '-'}</td>
+                        <td class="mono" style="font-size:0.8em;">${c.remote || '-'}</td>
+                        <td>${c.ipInfo?.owner || 'Unknown'}</td>
+                        <td><span class="tag tag-${c.ipInfo?.country === 'CN' ? 'danger' : 'info'}">${c.ipInfo?.country || '??'}</span></td>
+                        <td>${c.state || '-'}</td>
+                        <td><span class="tag tag-${riskClass}">${risk.toUpperCase()}</span></td>
+                    </tr>
+                `;
+            }).join('');
+        }
+
+        function filterNet(type, el) {
+            document.querySelectorAll('#netTabs .tab').forEach(t => t.classList.remove('active'));
+            el.classList.add('active');
+            let filtered = allConnections;
+            if (type === 'china') {
+                filtered = allConnections.filter(c => c.ipInfo?.country === 'CN' || c.ipInfo?.owner?.includes('Xiaomi') || c.ipInfo?.owner?.includes('Alibaba'));
+            } else if (type === 'google') {
+                filtered = allConnections.filter(c => c.ipInfo?.owner === 'Google');
+            } else if (type === 'established') {
+                filtered = allConnections.filter(c => c.state?.includes('ESTABLISHED'));
+            } else if (type === 'listening') {
+                filtered = allConnections.filter(c => c.state?.includes('LISTEN'));
+            }
+            renderConnections(filtered);
+        }
+
+        // DNS Analysis
+        let allDnsEntries = [];
+
+        async function loadDns() {
+            log('Analyzing network for DNS/C2 indicators...', 'info', 'adb shell netstat + dumpsys connectivity');
+            try {
+                const data = await api('dnsAnalysis');
+
+                // Update stats
+                const cache = data.cache || { total: 0, entries: [], xiaomi: [], suspicious: [] };
+                const activeConns = data.activeConnections || [];
+                const chinaEntries = cache.entries.filter(e => e.domain?.endsWith('.cn') || e.ipInfo?.country === 'CN');
+
+                document.getElementById('dnsCacheTotal').textContent = cache.total;
+                document.getElementById('dnsVendor').textContent = cache.vendor?.length || cache.xiaomi?.length || 0;
+                document.getElementById('dnsSuspicious').textContent = cache.suspicious?.length || 0;
+                document.getElementById('dnsChina').textContent = chinaEntries.length;
+
+                // DNS Configuration
+                const servers = data.dnsServers || [];
+                const privateDns = data.privateDns || { mode: 'off', server: null };
+                const privateDnsStatus = privateDns.mode === 'off' || privateDns.mode === 'null'
+                    ? '<span class="tag tag-medium">NOT PROTECTED</span>'
+                    : '<span class="tag tag-low">ENABLED</span>';
+                document.getElementById('dnsConfig').innerHTML = `
+                    <table>
+                        <tr><td><strong>Private DNS</strong></td><td>${privateDns.mode}${privateDns.server ? ': ' + privateDns.server : ''}</td>
+                            <td>${privateDnsStatus}</td></tr>
+                        <tr><td><strong>DNS Servers</strong></td><td colspan="2">
+                            ${servers.map(s => `<span class="mono">${s.ip}</span> <span class="tag tag-${s.info?.risk === 'high' ? 'high' : 'info'}">${s.info?.owner || 'Unknown'}</span>`).join('<br>') || 'None detected'}
+                        </td></tr>
+                        <tr><td><strong>Active Connections</strong></td><td colspan="2">${activeConns.length} connections detected</td></tr>
+                    </table>
+                `;
+
+                // Active connections table
+                document.getElementById('dnsActiveConnsTable').innerHTML = activeConns.length > 0
+                    ? activeConns.map(c => {
+                        const risk = c.ipInfo?.risk || c.portInfo?.risk || 'unknown';
+                        const riskClass = risk === 'high' ? 'high' : risk === 'medium' ? 'medium' : 'low';
+                        return `
+                            <tr>
+                                <td class="mono" style="font-size:0.85em;">${c.remoteIp}</td>
+                                <td class="mono">${c.remotePort}</td>
+                                <td>${c.ipInfo?.owner || 'Unknown'}</td>
+                                <td><span class="tag tag-${c.ipInfo?.country === 'CN' ? 'danger' : 'info'}">${c.ipInfo?.country || '??'}</span></td>
+                                <td>${c.portInfo?.service || '-'}</td>
+                                <td>${c.state}</td>
+                                <td><span class="tag tag-${riskClass}">${risk.toUpperCase()}</span></td>
+                            </tr>
+                        `;
+                    }).join('')
+                    : '<tr><td colspan="7" style="text-align:center;color:var(--text-muted);">No active connections detected</td></tr>';
+
+                // Suspicious entries table
+                const suspicious = cache.suspicious || [];
+                document.getElementById('dnsSuspiciousTable').innerHTML = suspicious.length > 0
+                    ? suspicious.map(e => `
+                        <tr>
+                            <td class="mono" style="font-size:0.85em;">${e.domain}</td>
+                            <td class="mono">${e.ip || 'N/A'}</td>
+                            <td><span class="tag tag-warning">${e.suspicious?.category || 'unknown'}</span></td>
+                            <td>${e.suspicious?.reason || '-'}</td>
+                            <td><span class="tag tag-${e.suspicious?.risk === 'critical' ? 'critical' : 'high'}">${(e.suspicious?.risk || 'unknown').toUpperCase()}</span></td>
+                        </tr>
+                    `).join('')
+                    : '<tr><td colspan="5" style="text-align:center;color:var(--accent);">No suspicious entries detected</td></tr>';
+
+                // Vendor domains table
+                const vendorDomains = cache.vendor || cache.xiaomi || [];
+                document.getElementById('dnsVendorTable').innerHTML = vendorDomains.length > 0
+                    ? vendorDomains.map(e => `
+                        <tr>
+                            <td class="mono" style="font-size:0.85em;">${e.domain}</td>
+                            <td class="mono">${e.ip || 'N/A'}</td>
+                            <td><span class="tag tag-info">${e.suspicious?.category || 'vendor'}</span></td>
+                            <td><span class="tag tag-${e.suspicious?.risk === 'high' ? 'high' : 'medium'}">${(e.suspicious?.risk || 'medium').toUpperCase()}</span></td>
+                        </tr>
+                    `).join('')
+                    : '<tr><td colspan="4" style="text-align:center;color:var(--text-muted);">No vendor domains detected</td></tr>';
+
+                // Alibaba/Tencent table
+                const alibaba = [...(cache.alibaba || []), ...(cache.tencent || [])];
+                document.getElementById('dnsAlibabaTable').innerHTML = alibaba.length > 0
+                    ? alibaba.map(e => `
+                        <tr>
+                            <td class="mono" style="font-size:0.85em;">${e.domain}</td>
+                            <td class="mono">${e.ip || 'N/A'}</td>
+                            <td>${e.ipInfo?.owner || 'Unknown'}</td>
+                            <td><span class="tag tag-medium">${(e.suspicious?.risk || 'medium').toUpperCase()}</span></td>
+                        </tr>
+                    `).join('')
+                    : '<tr><td colspan="4" style="text-align:center;color:var(--text-muted);">No Alibaba/Tencent domains detected</td></tr>';
+
+                // All entries
+                allDnsEntries = cache.entries || [];
+                renderDnsEntries(allDnsEntries);
+
+                // Raw output
+                document.getElementById('rawDns').textContent = data.raw?.netstat || data.raw?.connectivity || 'No raw data available';
+
+                log(`Network analysis complete: ${cache.total} entries, ${suspicious.length} suspicious, ${activeConns.length} active connections`, suspicious.length > 0 ? 'warning' : 'success');
+            } catch (e) {
+                log(`DNS analysis error: ${e.message}`, 'error');
+            }
+        }
+
+        function renderDnsEntries(entries) {
+            document.getElementById('dnsAllTable').innerHTML = entries.map(e => {
+                const risk = e.suspicious?.risk || e.ipInfo?.risk || 'unknown';
+                const riskClass = risk === 'critical' ? 'critical' : risk === 'high' ? 'high' : risk === 'medium' ? 'medium' : 'info';
+                const sourceTag = e.source === 'netstat' ? 'danger' : e.source === 'connectivity' ? 'info' : 'warning';
+                return `
+                    <tr>
+                        <td class="mono" style="font-size:0.8em;">${e.domain}</td>
+                        <td class="mono">${e.ip || 'N/A'}</td>
+                        <td>${e.ipInfo?.owner || 'Unknown'}</td>
+                        <td><span class="tag tag-${sourceTag}">${e.source || 'unknown'}</span></td>
+                        <td><span class="tag tag-${riskClass}">${risk.toUpperCase()}</span></td>
+                    </tr>
+                `;
+            }).join('') || '<tr><td colspan="5" style="text-align:center;color:var(--text-muted);">No entries found</td></tr>';
+        }
+
+        function filterDns(type, el) {
+            document.querySelectorAll('#dnsTabs .tab').forEach(t => t.classList.remove('active'));
+            el.classList.add('active');
+            let filtered = allDnsEntries;
+            if (type === 'suspicious') {
+                filtered = allDnsEntries.filter(e => e.suspicious?.isSuspicious);
+            } else if (type === 'vendor') {
+                // Filter for vendor-specific domains based on detected vendor
+                filtered = allDnsEntries.filter(e => e.domain.match(/xiaomi|miui|mi\.|mipush|oppo|coloros|realme|oneplus|oxygen|samsung|sec\.|bixby|samsungcloud/i));
+            } else if (type === 'china') {
+                filtered = allDnsEntries.filter(e => e.domain.endsWith('.cn') || e.ipInfo?.country === 'CN');
+            }
+            renderDnsEntries(filtered);
+        }
+
+        // Processes
+        let processData = null;
+
+        async function loadProcesses() {
+            log('Loading processes...', 'info', 'adb shell ps -A -o PID,PPID,USER,RSS,VSZ,%CPU,STAT,CMDLINE,NAME');
+            try {
+                const data = await api('processes');
+                processData = data;
+                allProcesses = data.processes || [];
+
+                // Update stats
+                const summary = data.summary || {};
+                document.getElementById('procTotal').textContent = summary.total || allProcesses.length;
+                document.getElementById('procVendor').textContent = summary.vendor || summary.xiaomi || 0;
+                document.getElementById('procHighRisk').textContent = summary.highRisk || 0;
+                document.getElementById('procRunning').textContent = summary.running || 0;
+                document.getElementById('procSleeping').textContent = summary.sleeping || 0;
+
+                // High-risk processes table
+                const highRisk = data.highRisk || [];
+                document.getElementById('procHighRiskTable').innerHTML = highRisk.length > 0
+                    ? highRisk.map(p => {
+                        const riskClass = p.risk === 'critical' ? 'critical' : p.risk === 'high' ? 'high' : 'medium';
+                        const catClass = p.category === 'remote-control' ? 'danger' : p.category === 'telemetry' ? 'warning' : 'info';
+                        const infoBtn = p.pkg ? `<button class="act-btn act-info" onclick="showDependencies('${p.pkg}')" title="View dependencies" style="padding:2px 6px;font-size:0.75em;">ℹ️</button>` : '';
+                        return `
+                            <tr>
+                                <td>${p.pid}</td>
+                                <td>
+                                    <div style="font-weight:500;">${p.displayName || ''} ${infoBtn}</div>
+                                    <div class="mono" style="font-size:0.75em;color:var(--text-muted);">${p.pkg || '-'}</div>
+                                </td>
+                                <td class="mono" style="font-size:0.8em;" title="${p.cmdline || p.name}">${p.name}</td>
+                                <td>${p.memory}</td>
+                                <td title="${p.stateDesc}">${p.state} <span style="color:var(--text-muted);font-size:0.8em;">(${p.stateDesc})</span></td>
+                                <td><span class="tag tag-${catClass}">${p.category}</span></td>
+                                <td><span class="tag tag-${riskClass}">${p.risk.toUpperCase()}</span></td>
+                            </tr>
+                        `;
+                    }).join('')
+                    : '<tr><td colspan="7" style="text-align:center;color:var(--accent);">No high-risk processes detected</td></tr>';
+
+                // Top memory table
+                const topMem = data.topMemory || [];
+                document.getElementById('procTopMemTable').innerHTML = topMem.map(p => {
+                    const catClass = p.category === 'xiaomi' ? 'warning' : p.category === 'google' ? 'info' : 'low';
+                    const infoBtn = p.pkg ? `<button class="act-btn act-info" onclick="showDependencies('${p.pkg}')" title="View dependencies" style="padding:2px 6px;font-size:0.75em;">ℹ️</button>` : '';
+                    return `
+                        <tr>
+                            <td>${p.pid}</td>
+                            <td>
+                                <div style="font-weight:500;">${p.displayName || ''} ${infoBtn}</div>
+                                <div class="mono" style="font-size:0.75em;color:var(--text-muted);">${p.pkg || p.name}</div>
+                            </td>
+                            <td><strong>${p.memory}</strong></td>
+                            <td>${p.cpu}</td>
+                            <td><span class="tag tag-${catClass}">${p.category}</span></td>
+                        </tr>
+                    `;
+                }).join('');
+
+                // All processes
+                renderProcesses(allProcesses);
+
+                const vendorCount = (data.vendor || data.xiaomi || []).length;
+                log(`Loaded ${allProcesses.length} processes (${vendorCount} vendor, ${highRisk.length} high-risk)`,
+                    highRisk.length > 0 ? 'warning' : 'success');
+            } catch (e) {
+                log(`Error: ${e.message}`, 'error');
+            }
+        }
+
+        function renderProcesses(procs) {
+            document.getElementById('procTable').innerHTML = procs.map(p => {
+                const riskClass = p.risk === 'critical' ? 'critical' : p.risk === 'high' ? 'high' : p.risk === 'medium' ? 'medium' : 'low';
+                const infoBtn = p.pkg ? `<button class="act-btn act-info" onclick="showDependencies('${p.pkg}')" title="View dependencies" style="padding:2px 6px;font-size:0.75em;">ℹ️</button>` : '';
+                return `
+                    <tr>
+                        <td>${p.pid}</td>
+                        <td>${p.user}</td>
+                        <td>
+                            <div style="font-weight:500;">${p.displayName || ''} ${infoBtn}</div>
+                            <div class="mono" style="font-size:0.8em;color:var(--text-muted);">${p.pkg || '-'}</div>
+                        </td>
+                        <td class="mono" style="font-size:0.8em;" title="${p.cmdline || ''}">${p.name}</td>
+                        <td>${p.memory}</td>
+                        <td title="${p.stateDesc || ''}">${p.state || '-'} <span style="color:var(--text-muted);font-size:0.75em;">${p.stateDesc || ''}</span></td>
+                        <td><span class="tag tag-${riskClass}">${(p.risk || 'low').toUpperCase()}</span></td>
+                    </tr>
+                `;
+            }).join('') || '<tr><td colspan="7">No processes found</td></tr>';
+        }
+
+        function filterProcs(type, el) {
+            document.querySelectorAll('#procTabs .tab').forEach(t => t.classList.remove('active'));
+            el.classList.add('active');
+            let filtered = allProcesses;
+            if (type === 'vendor') {
+                filtered = allProcesses.filter(p => p.category === 'xiaomi' || p.category === 'vendor' || p.category === 'push-service' || p.category === 'remote-control');
+            } else if (type === 'google') {
+                filtered = allProcesses.filter(p => p.category === 'google' || /google|gms|gservices/i.test(p.name));
+            } else if (type === 'system') {
+                filtered = allProcesses.filter(p => p.user === 'root' || p.user === 'system');
+            } else if (type === 'running') {
+                filtered = allProcesses.filter(p => p.state === 'R');
+            }
+            renderProcesses(filtered);
+        }
+
+        function searchProcs() {
+            const q = document.getElementById('procSearch').value.toLowerCase();
+            renderProcesses(allProcesses.filter(p =>
+                p.name?.toLowerCase().includes(q) ||
+                p.pkg?.toLowerCase().includes(q) ||
+                p.displayName?.toLowerCase().includes(q) ||
+                p.cmdline?.toLowerCase().includes(q)
+            ));
+        }
+
+        // Debloat phases
+        async function executePhase(num) {
+            const list = num === 1 ? phase1 : num === 2 ? phase2 : phase3;
+            const installedPkgs = new Set(allPackages.map(p => p.pkg));
+            let processed = 0;
+            let skipped = 0;
+
+            log(`Executing Phase ${num}...`, 'warning');
+
+            for (const p of list) {
+                const cb = document.getElementById(`p${num}_${p.pkg}`);
+                // Only process if checkbox is checked AND package is still installed
+                if (cb && cb.checked && !cb.disabled && installedPkgs.has(p.pkg)) {
+                    if (p.action === 'disable') {
+                        await disablePkg(p.pkg);
+                    } else {
+                        await removePkg(p.pkg);
+                    }
+                    processed++;
+                    await new Promise(r => setTimeout(r, 200));
+                } else if (cb && cb.checked && !installedPkgs.has(p.pkg)) {
+                    skipped++;
+                }
+            }
+
+            // Refresh package list and debloat display
+            await loadPackages();
+            renderDebloatLists();
+
+            log(`Phase ${num} complete: ${processed} removed, ${skipped} already removed`, 'success');
+        }
+
+        // Terminal
+        async function runTermCmd() {
+            const input = document.getElementById('termInput');
+            const cmd = input.value.trim();
+            if (!cmd) return;
+
+            const output = document.getElementById('termOutput');
+            output.innerHTML += `<div class="term-line"><span class="term-prompt">$ </span>${cmd}</div>`;
+            input.value = '';
+
+            log(`Shell: ${cmd}`, 'info', cmd);
+            try {
+                const res = await api('shell', {cmd});
+                output.innerHTML += `<div class="term-line term-output">${res.output || res.stderr || '(no output)'}</div>`;
+            } catch (e) {
+                output.innerHTML += `<div class="term-line term-error">Error: ${e.message}</div>`;
+            }
+            output.scrollTop = output.scrollHeight;
+        }
+
+        function clearTerminal() {
+            document.getElementById('termOutput').innerHTML = '';
+        }
+
+        async function runQuickCmd() {
+            const input = document.getElementById('quickCmd');
+            const cmd = input.value.trim();
+            if (!cmd) return;
+            input.value = '';
+
+            log(`Quick: ${cmd}`, 'info', cmd);
+            try {
+                const res = await api('shell', {cmd});
+                log(res.output || '(no output)', 'success');
+            } catch (e) {
+                log(`Error: ${e.message}`, 'error');
+            }
+        }
+
+        // Wallpaper Management
+        let selectedWallpaperData = null;
+        let deviceImages = [];
+
+        function previewWallpaper(input) {
+            const file = input.files[0];
+            if (!file) return;
+
+            const reader = new FileReader();
+            reader.onload = function(e) {
+                selectedWallpaperData = e.target.result;
+                const preview = document.getElementById('wallpaperPreview');
+                preview.innerHTML = `<img src="${selectedWallpaperData}" style="max-width:100%;max-height:100%;object-fit:contain;">`;
+                document.getElementById('btnSetWallpaper').disabled = false;
+                document.getElementById('wallpaperStatus').innerHTML = `<span style="color:var(--accent);">✓ Image loaded: ${file.name} (${formatFileSize(file.size)})</span>`;
+            };
+            reader.readAsDataURL(file);
+        }
+
+        function formatFileSize(bytes) {
+            if (bytes === 0) return '0 B';
+            const k = 1024;
+            const sizes = ['B', 'KB', 'MB', 'GB'];
+            const i = Math.floor(Math.log(bytes) / Math.log(k));
+            return parseFloat((bytes / Math.pow(k, i)).toFixed(1)) + ' ' + sizes[i];
+        }
+
+        // Enable drag and drop
+        document.addEventListener('DOMContentLoaded', () => {
+            const preview = document.getElementById('wallpaperPreview');
+            if (preview) {
+                preview.addEventListener('dragover', (e) => {
+                    e.preventDefault();
+                    preview.style.borderColor = 'var(--accent)';
+                });
+                preview.addEventListener('dragleave', () => {
+                    preview.style.borderColor = 'var(--border)';
+                });
+                preview.addEventListener('drop', (e) => {
+                    e.preventDefault();
+                    preview.style.borderColor = 'var(--border)';
+                    const file = e.dataTransfer.files[0];
+                    if (file && file.type.startsWith('image/')) {
+                        document.getElementById('wallpaperInput').files = e.dataTransfer.files;
+                        previewWallpaper(document.getElementById('wallpaperInput'));
+                    }
+                });
+            }
+        });
+
+        async function uploadAndSetWallpaper() {
+            if (!selectedWallpaperData) {
+                log('No image selected', 'error');
+                return;
+            }
+
+            const target = document.getElementById('wallpaperTarget').value;
+            const statusEl = document.getElementById('wallpaperStatus');
+            const btn = document.getElementById('btnSetWallpaper');
+
+            btn.disabled = true;
+            btn.textContent = '⏳ Uploading...';
+            statusEl.innerHTML = '<span style="color:var(--info);">Uploading image to device...</span>';
+            log(`Setting ${target} wallpaper...`, 'info');
+
+            try {
+                const res = await apiPost('setWallpaper', {
+                    imageData: selectedWallpaperData,
+                    type: target
+                });
+
+                if (res.success) {
+                    statusEl.innerHTML = `<span style="color:var(--accent);">✓ Wallpaper set successfully!</span>`;
+                    if (res.home?.needsManual) {
+                        statusEl.innerHTML += `<br><span style="color:var(--warning);">Note: Wallpaper picker opened on device - please complete selection there.</span>`;
+                    }
+                    log(`Wallpaper set: home=${res.home?.success}, lock=${res.lock?.success}`, 'success');
+                } else {
+                    statusEl.innerHTML = `<span style="color:var(--danger);">✗ Failed: ${res.error || 'Unknown error'}</span>`;
+                    log(`Wallpaper failed: ${res.error}`, 'error');
+                }
+            } catch (e) {
+                statusEl.innerHTML = `<span style="color:var(--danger);">✗ Error: ${e.message}</span>`;
+                log(`Wallpaper error: ${e.message}`, 'error');
+            }
+
+            btn.disabled = false;
+            btn.textContent = '🎨 Set Wallpaper';
+        }
+
+        async function loadDeviceImages() {
+            log('Scanning device for images...', 'info');
+            const listEl = document.getElementById('deviceImagesList');
+            listEl.innerHTML = '<div class="loading"><div class="spinner"></div>Scanning...</div>';
+
+            try {
+                const res = await api('listDeviceImages');
+                deviceImages = res.images || [];
+
+                if (deviceImages.length === 0) {
+                    listEl.innerHTML = '<p style="color:var(--text-muted);text-align:center;padding:20px;">No images found on device.</p>';
+                } else {
+                    renderDeviceImages(deviceImages);
+                }
+                log(`Found ${deviceImages.length} images on device`, 'success');
+            } catch (e) {
+                listEl.innerHTML = `<p style="color:var(--danger);">Error: ${e.message}</p>`;
+                log(`Error scanning images: ${e.message}`, 'error');
+            }
+        }
+
+        function renderDeviceImages(images) {
+            const listEl = document.getElementById('deviceImagesList');
+            listEl.innerHTML = images.map(img => `
+                <div class="image-card" style="background:var(--bg-input);border-radius:8px;padding:10px;cursor:pointer;transition:all 0.2s;" onclick="setWallpaperFromDevice('${img.path.replace(/'/g, "\\'")}')">
+                    <div style="height:80px;background:var(--bg-dark);border-radius:4px;display:flex;align-items:center;justify-content:center;margin-bottom:8px;overflow:hidden;">
+                        <span style="font-size:2em;">🖼️</span>
+                    </div>
+                    <div style="font-size:0.8em;font-weight:500;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;" title="${img.path}">${img.name}</div>
+                    <div style="font-size:0.7em;color:var(--text-muted);">${img.sizeFormatted || ''}</div>
+                    <div style="font-size:0.65em;color:var(--text-muted);overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">${img.directory}</div>
+                </div>
+            `).join('');
+
+            // Add hover effect
+            listEl.querySelectorAll('.image-card').forEach(card => {
+                card.addEventListener('mouseenter', () => card.style.background = 'var(--border)');
+                card.addEventListener('mouseleave', () => card.style.background = 'var(--bg-input)');
+            });
+        }
+
+        function filterImages(type, el) {
+            document.querySelectorAll('#imageDirTabs .tab').forEach(t => t.classList.remove('active'));
+            el.classList.add('active');
+
+            let filtered = deviceImages;
+            if (type === 'camera') {
+                filtered = deviceImages.filter(img => img.directory.includes('Camera') || img.directory.includes('DCIM'));
+            } else if (type === 'pictures') {
+                filtered = deviceImages.filter(img => img.directory.includes('Pictures'));
+            } else if (type === 'download') {
+                filtered = deviceImages.filter(img => img.directory.includes('Download'));
+            }
+            renderDeviceImages(filtered);
+        }
+
+        async function setWallpaperFromDevice(imagePath) {
+            const target = document.getElementById('wallpaperTarget').value;
+            log(`Setting wallpaper from device: ${imagePath}`, 'info');
+
+            try {
+                const res = await apiPost('setWallpaperFromDevice', {
+                    path: imagePath,
+                    type: target
+                });
+
+                if (res.success) {
+                    log(`Wallpaper set from device: home=${res.home?.success}, lock=${res.lock?.success}`, 'success');
+                    document.getElementById('wallpaperStatus').innerHTML = `<span style="color:var(--accent);">✓ Wallpaper set from device!</span>`;
+                } else {
+                    log(`Failed to set wallpaper: ${res.error || 'Unknown error'}`, 'error');
+                    document.getElementById('wallpaperStatus').innerHTML = `<span style="color:var(--danger);">✗ Failed: ${res.error || 'Unknown error'}</span>`;
+                }
+            } catch (e) {
+                log(`Error: ${e.message}`, 'error');
+            }
+        }
+
+        async function loadWallpaperInfo() {
+            try {
+                const res = await api('getWallpaperInfo');
+                document.getElementById('wallpaperInfo').textContent = res.info || res.error || 'No info available';
+            } catch (e) {
+                document.getElementById('wallpaperInfo').textContent = 'Error: ' + e.message;
+            }
+        }
+
+        // Navigation
+        function showSection(id, el) {
+            document.querySelectorAll('.main > section').forEach(s => {
+                s.classList.add('hidden');
+                s.style.display = 'none';
+            });
+            const section = document.getElementById('sec-' + id);
+            section.classList.remove('hidden');
+            // Use flex display for packages section for better scroll area
+            section.style.display = (id === 'packages') ? 'flex' : 'block';
+            document.querySelectorAll('.nav-item').forEach(n => n.classList.remove('active'));
+            if (el) el.classList.add('active');
+
+            // Load data for section
+            if (id === 'packages' && allPackages.length === 0) loadPackages();
+            if (id === 'installorigin') loadInstallOrigins();
+            if (id === 'network') loadNetwork();
+            if (id === 'dns') loadDns();
+            if (id === 'processes') loadProcesses();
+            if (id === 'restore') loadDisabled();
+            if (id === 'debloat') renderDebloatLists(); // Refresh debloat lists with current package status
+            if (id === 'wallpaper') loadWallpaperInfo();
+        }
+
+        // Logging
+        function log(msg, type = 'info', cmd = null) {
+            const el = document.getElementById('logContent');
+            const time = new Date().toLocaleTimeString();
+            let html = `<div class="log-entry ${type}"><div class="log-time">${time}</div>`;
+            if (cmd) html += `<div class="log-cmd">${cmd}</div>`;
+            html += `<div>${msg}</div></div>`;
+            el.innerHTML += html;
+            el.scrollTop = el.scrollHeight;
+        }
+
+        function clearLog() {
+            document.getElementById('logContent').innerHTML = '';
+            log('Log cleared', 'info');
+        }
+
+        function exportLog() {
+            const content = document.getElementById('logContent').innerText;
+            const blob = new Blob([content], {type: 'text/plain'});
+            const a = document.createElement('a');
+            a.href = URL.createObjectURL(blob);
+            a.download = `android-slim-log-${new Date().toISOString().split('T')[0]}.txt`;
+            a.click();
+        }
+
+        // CPU Monitor
+        let cpuAutoRefreshInterval = null;
+
+        async function loadCpuInfo() {
+            try {
+                const [cpuRes, topRes] = await Promise.all([
+                    fetch('/cpuInfo'),
+                    fetch('/topProcesses')
+                ]);
+                const cpuData = await cpuRes.json();
+                const topData = await topRes.json();
+
+                if (cpuData.error) throw new Error(cpuData.error);
+
+                updateCpuDisplay(cpuData);
+                updateTopProcesses(topData.processes || []);
+                log('CPU info loaded', 'success');
+            } catch (e) {
+                log('CPU fetch error: ' + e.message, 'error');
+                document.getElementById('cpuSuggestions').innerHTML = `
+                    <div class="cpu-suggestion critical">
+                        <div class="title">Error</div>
+                        <div class="desc">${e.message}</div>
+                    </div>`;
+            }
+        }
+
+        function updateCpuDisplay(data) {
+            const usage = data.overall.usage;
+            const circumference = 251.2;
+            const offset = circumference - (usage / 100) * circumference;
+
+            const gauge = document.getElementById('cpuGauge');
+            gauge.style.strokeDashoffset = offset;
+            gauge.style.stroke = usage > 80 ? 'var(--danger)' : usage > 50 ? 'var(--warning)' : 'var(--accent)';
+
+            document.getElementById('cpuOverall').textContent = `${usage}%`;
+
+            if (data.overall.temperature) {
+                const temp = data.overall.temperature;
+                const tempColor = temp > 55 ? 'var(--danger)' : temp > 45 ? 'var(--warning)' : 'inherit';
+                document.getElementById('cpuTemp').innerHTML = `Temperature: <span style="color:${tempColor}">${temp.toFixed(1)}°C</span>`;
+            } else {
+                document.getElementById('cpuTemp').textContent = 'Temperature: N/A';
+            }
+
+            // Show CPU model and core count
+            const cpuModel = data.overall.cpuModel || 'Unknown';
+            const coreCount = data.overall.coreCount || data.cores.length;
+            document.getElementById('cpuGovernor').textContent = `Governor: ${data.overall.governor}`;
+            document.getElementById('cpuOnline').innerHTML = `Cores: ${coreCount} (Online: ${data.overall.online})<br><span style="font-size:0.8em;">${cpuModel}</span>`;
+
+            // Dynamically render clusters
+            renderCpuClusters(data.clusters, data.cores);
+
+            updateCpuSuggestions(data.suggestions);
+        }
+
+        function renderCpuClusters(clusters, cores) {
+            const container = document.getElementById('cpuClusters');
+            let html = '';
+
+            // Get cluster names in order: efficiency, performance, standard (or any others)
+            const clusterOrder = ['efficiency', 'performance', 'standard'];
+            const sortedClusterNames = Object.keys(clusters).sort((a, b) => {
+                const aIdx = clusterOrder.indexOf(a);
+                const bIdx = clusterOrder.indexOf(b);
+                if (aIdx === -1 && bIdx === -1) return 0;
+                if (aIdx === -1) return 1;
+                if (bIdx === -1) return -1;
+                return aIdx - bIdx;
+            });
+
+            for (const clusterName of sortedClusterNames) {
+                const cluster = clusters[clusterName];
+                if (!cluster) continue;
+
+                const clusterCores = cores.filter(c => cluster.cores.includes(c.id));
+                const gridCols = Math.min(clusterCores.length, 4); // Max 4 columns
+
+                html += `
+                    <div style="margin-bottom:20px;">
+                        <div style="display:flex;justify-content:space-between;padding:8px 12px;background:var(--bg-input);border-radius:6px;margin-bottom:10px;">
+                            <span style="font-weight:bold;">${cluster.name}</span>
+                            <span style="color:var(--info);">${cluster.avgUsage}%</span>
+                        </div>
+                        <div style="display:grid;grid-template-columns:repeat(${gridCols},1fr);gap:10px;">
+                            ${clusterCores.map(core => `
+                                <div class="cpu-core">
+                                    <div class="cpu-bar">
+                                        <div class="cpu-fill ${core.usage > 70 ? 'high' : ''}" style="height:${core.usage}%"></div>
+                                        <div class="cpu-val">${core.usage}%</div>
+                                    </div>
+                                    <div class="cpu-lbl">Core ${core.id}</div>
+                                    <div class="cpu-freq">${core.frequency > 0 ? Math.round(core.frequency / 1000) + ' MHz' : '-- MHz'}</div>
+                                </div>
+                            `).join('')}
+                        </div>
+                    </div>
+                `;
+            }
+
+            container.innerHTML = html || '<div style="padding:20px;text-align:center;color:var(--text-muted);">No CPU cluster data available</div>';
+        }
+
+        function updateCpuSuggestions(suggestions) {
+            const container = document.getElementById('cpuSuggestions');
+            if (!suggestions || suggestions.length === 0) {
+                container.innerHTML = `<div class="cpu-suggestion success"><div class="title">All Good</div><div class="desc">No issues detected</div></div>`;
+                return;
+            }
+
+            container.innerHTML = suggestions.map(s => `
+                <div class="cpu-suggestion ${s.type}">
+                    <div class="title">${s.title}</div>
+                    <div class="desc">${s.desc}</div>
+                    <div class="action">${s.action}</div>
+                </div>
+            `).join('');
+        }
+
+        function updateTopProcesses(processes) {
+            const container = document.getElementById('topProcs');
+            if (!processes || processes.length === 0) {
+                container.innerHTML = '<div style="padding:8px;color:var(--text-muted);">No active processes</div>';
+                return;
+            }
+
+            container.innerHTML = processes.slice(0, 10).map(p => `
+                <div class="proc-row">
+                    <span class="cpu-pct ${p.cpu > 10 ? 'high' : ''}">${p.cpu.toFixed(1)}%</span>
+                    <div>
+                        <div class="proc-name">${p.displayName}</div>
+                        ${p.name !== p.displayName ? `<div class="proc-pkg">${p.name}</div>` : ''}
+                    </div>
+                </div>
+            `).join('');
+        }
+
+        function toggleCpuAutoRefresh() {
+            const checkbox = document.getElementById('cpuAutoRefresh');
+            if (checkbox.checked) {
+                loadCpuInfo();
+                cpuAutoRefreshInterval = setInterval(loadCpuInfo, 2000);
+            } else {
+                if (cpuAutoRefreshInterval) {
+                    clearInterval(cpuAutoRefreshInterval);
+                    cpuAutoRefreshInterval = null;
+                }
+            }
+        }
+
+        // Security Review
+        async function runSecurityReview() {
+            log('Starting process security review...', 'info');
+
+            document.getElementById('unregisteredList').innerHTML = '<div style="padding:15px;color:var(--text-muted);">🔍 Scanning processes...</div>';
+            document.getElementById('suspiciousList').innerHTML = '<div style="padding:15px;color:var(--text-muted);">🔍 Scanning processes...</div>';
+
+            try {
+                const resp = await fetch(`${API}/processSecurityReview`);
+                const data = await resp.json();
+
+                if (data.error) {
+                    throw new Error(data.error);
+                }
+
+                // Update stats
+                document.getElementById('secTotal').textContent = data.summary.totalProcesses;
+                document.getElementById('secRegistered').textContent = data.summary.registeredPackages;
+                document.getElementById('secUnregistered').textContent = data.summary.unregisteredCount;
+                document.getElementById('secSuspicious').textContent = data.summary.suspiciousCount;
+                document.getElementById('secCritical').textContent = data.summary.criticalCount;
+                document.getElementById('secHigh').textContent = data.summary.highCount;
+
+                // Render unregistered processes
+                renderSecurityProcesses('unregisteredList', data.unregisteredProcesses, 'Unregistered Processes');
+
+                // Render suspicious processes
+                renderSecurityProcesses('suspiciousList', data.suspiciousProcesses, 'Suspicious Processes');
+
+                log(`Security review complete: ${data.summary.unregisteredCount} unregistered, ${data.summary.suspiciousCount} suspicious`,
+                    data.summary.criticalCount > 0 ? 'error' : (data.summary.highCount > 0 ? 'warning' : 'success'));
+
+            } catch (e) {
+                log(`Security review failed: ${e.message}`, 'error');
+                document.getElementById('unregisteredList').innerHTML = `<div style="padding:15px;color:var(--danger);">Error: ${e.message}</div>`;
+                document.getElementById('suspiciousList').innerHTML = `<div style="padding:15px;color:var(--danger);">Error: ${e.message}</div>`;
+            }
+        }
+
+        function renderSecurityProcesses(containerId, processes, title) {
+            const container = document.getElementById(containerId);
+
+            if (!processes || processes.length === 0) {
+                container.innerHTML = `<div style="padding:15px;color:var(--accent);">✅ No ${title.toLowerCase()} found</div>`;
+                return;
+            }
+
+            container.innerHTML = processes.map(p => {
+                // Get highest severity from flags
+                const severityOrder = ['critical', 'high', 'warning', 'medium', 'info'];
+                const highestSeverity = severityOrder.find(sev =>
+                    p.flags.some(f => f.severity === sev)
+                ) || 'info';
+
+                return `
+                    <div class="sec-proc ${highestSeverity}">
+                        <div class="sec-proc-header">
+                            <div class="sec-proc-name">${p.name}</div>
+                            <span class="sec-proc-pid">PID: ${p.pid}</span>
+                        </div>
+                        <div class="sec-proc-details">
+                            <div>User: <strong>${p.user}</strong></div>
+                            ${p.packageName ? `<div>Package: <strong>${p.packageName}</strong> ${p.isRegistered ? '✅' : '❌ Not registered'}</div>` : ''}
+                            ${p.cmdline && p.cmdline !== p.name ? `<div style="word-break:break-all;margin-top:4px;">CMD: ${p.cmdline}</div>` : ''}
+                        </div>
+                        <div class="sec-proc-flags">
+                            ${p.flags.map(f => `
+                                <span class="sec-flag ${f.severity}" title="${f.reason}">
+                                    ${getSeverityIcon(f.severity)} ${f.reason}
+                                </span>
+                            `).join('')}
+                        </div>
+                    </div>
+                `;
+            }).join('');
+        }
+
+        function getSeverityIcon(severity) {
+            switch (severity) {
+                case 'critical': return '🔴';
+                case 'high': return '🟠';
+                case 'warning': return '🟡';
+                case 'medium': return '🔵';
+                case 'info': return 'ℹ️';
+                default: return '⚪';
+            }
+        }
+
+        // Package Dependencies
+        async function showDependencies(pkg) {
+            const modal = document.getElementById('depModal');
+            const body = document.getElementById('depModalBody');
+            const title = document.getElementById('depModalTitle');
+
+            title.textContent = `Dependencies: ${pkg}`;
+            body.innerHTML = `<div class="dep-loading"><div class="spinner">⏳</div><p>Analyzing dependencies...</p></div>`;
+            modal.classList.add('show');
+
+            log(`Analyzing dependencies for ${pkg}...`, 'info');
+
+            try {
+                const data = await api('packageDependencies', { pkg });
+
+                if (data.error) {
+                    body.innerHTML = `<div class="dep-safety unknown"><p>Error: ${data.error}</p></div>`;
+                    return;
+                }
+
+                // Build the modal content
+                let html = '';
+
+                // Safety level section
+                const safetyIcons = { safe: '✅', dangerous: '🚫', caution: '⚠️', unknown: '❓' };
+                html += `
+                    <div class="dep-safety ${data.safetyLevel}">
+                        <div class="dep-safety-header">
+                            <span class="dep-safety-icon">${safetyIcons[data.safetyLevel] || '❓'}</span>
+                            <span class="dep-safety-level">${data.safetyLevel}</span>
+                        </div>
+                        <div>${data.safetyReason}</div>
+                    </div>
+                `;
+
+                // Known info section (if available)
+                if (data.knownInfo) {
+                    html += `
+                        <div class="dep-section">
+                            <h4>📋 Package Information</h4>
+                            <p style="margin:0 0 10px 0;">${data.knownInfo.description}</p>
+                            ${data.knownInfo.dependents && data.knownInfo.dependents.length > 0 ? `
+                                <h4 style="margin-top:15px;">🔗 Features/Apps that depend on this:</h4>
+                                <ul class="dep-list">
+                                    ${data.knownInfo.dependents.map(d => `<li><span class="icon">📦</span> ${d}</li>`).join('')}
+                                </ul>
+                            ` : ''}
+                            ${data.knownInfo.impact ? `
+                                <h4 style="margin-top:15px;">⚡ Impact if removed:</h4>
+                                <p style="margin:0;padding:10px;background:var(--bg-input);border-radius:6px;">${data.knownInfo.impact}</p>
+                            ` : ''}
+                        </div>
+                    `;
+                }
+
+                // Permissions section
+                const perms = data.permissions || {};
+                if (perms.dangerous?.length || perms.granted?.length) {
+                    html += `<div class="dep-section"><h4>🔐 Permissions</h4>`;
+
+                    // Dangerous permissions (highlighted)
+                    if (perms.dangerous?.length) {
+                        html += `
+                            <div style="margin-bottom:12px;">
+                                <span style="color:var(--danger);font-weight:600;">⚠️ Sensitive Permissions (${perms.dangerous.length}):</span>
+                                <div style="display:flex;flex-wrap:wrap;gap:6px;margin-top:8px;">
+                                    ${perms.dangerous.map(p => `<span class="perm-tag dangerous">${p}</span>`).join('')}
+                                </div>
+                            </div>
+                        `;
+                    }
+
+                    // Granted permissions
+                    if (perms.granted?.length) {
+                        html += `
+                            <div style="margin-bottom:12px;">
+                                <span style="color:var(--success);font-weight:600;">✅ Granted (${perms.granted.length}):</span>
+                                <div style="display:flex;flex-wrap:wrap;gap:6px;margin-top:8px;">
+                                    ${perms.granted.map(p => {
+                                        const isDangerous = perms.dangerous?.includes(p);
+                                        return `<span class="perm-tag ${isDangerous ? 'dangerous' : 'granted'}">${p}</span>`;
+                                    }).join('')}
+                                </div>
+                            </div>
+                        `;
+                    }
+
+                    // Denied permissions
+                    if (perms.denied?.length) {
+                        html += `
+                            <div>
+                                <span style="color:var(--text-muted);font-weight:600;">❌ Denied (${perms.denied.length}):</span>
+                                <div style="display:flex;flex-wrap:wrap;gap:6px;margin-top:8px;">
+                                    ${perms.denied.map(p => `<span class="perm-tag denied">${p}</span>`).join('')}
+                                </div>
+                            </div>
+                        `;
+                    }
+
+                    html += `</div>`;
+                }
+
+                // Network & Persistence section
+                const netInfo = data.networkInfo || {};
+                const persistInfo = data.persistentInfo || {};
+                if (netInfo.hasInternetPermission || persistInfo.isPersistent || persistInfo.hasBootReceiver) {
+                    html += `<div class="dep-section"><h4>🌐 Network & Background Activity</h4><ul class="dep-list">`;
+
+                    // Internet access
+                    if (netInfo.hasInternetPermission) {
+                        html += `<li><span class="icon">🌍</span> Has Internet Access</li>`;
+                    } else {
+                        html += `<li><span class="icon">🚫</span> No Internet Permission</li>`;
+                    }
+
+                    // Network restrictions
+                    if (netInfo.meteredRestricted) {
+                        html += `<li><span class="icon">📵</span> Metered data restricted</li>`;
+                    }
+                    if (netInfo.backgroundRestricted) {
+                        html += `<li><span class="icon">🔒</span> Background data restricted</li>`;
+                    }
+
+                    // Persistence
+                    if (persistInfo.isPersistent) {
+                        html += `<li><span class="icon">♾️</span> <strong>Persistent app</strong> - always runs in background</li>`;
+                    }
+                    if (persistInfo.hasBootReceiver) {
+                        html += `<li><span class="icon">🔄</span> <strong>Starts on boot</strong> - auto-starts when device powers on</li>`;
+                    }
+
+                    // Battery optimization
+                    if (persistInfo.batteryOptimization === 'whitelisted') {
+                        html += `<li><span class="icon">🔋</span> Battery optimization disabled (whitelisted)</li>`;
+                    }
+
+                    // Active connections
+                    if (netInfo.activeConnections?.length) {
+                        html += `<li><span class="icon">📡</span> Active connections: ${netInfo.activeConnections.length}</li>`;
+                        netInfo.activeConnections.slice(0, 5).forEach(conn => {
+                            html += `<li style="margin-left:20px;"><span class="icon">→</span> ${conn.protocol}: ${conn.connection}</li>`;
+                        });
+                        if (netInfo.activeConnections.length > 5) {
+                            html += `<li style="margin-left:20px;color:var(--text-muted);">... and ${netInfo.activeConnections.length - 5} more</li>`;
+                        }
+                    }
+
+                    html += `</ul></div>`;
+                }
+
+                // Running services section
+                if (data.runningServices?.length) {
+                    html += `
+                        <div class="dep-section">
+                            <h4>⚙️ Running Services (${data.runningServices.length})</h4>
+                            <ul class="dep-list">
+                                ${data.runningServices.slice(0, 10).map(s => `<li><span class="icon">▶️</span> ${s.split('/').pop()}</li>`).join('')}
+                                ${data.runningServices.length > 10 ? `<li style="color:var(--text-muted);">... and ${data.runningServices.length - 10} more</li>` : ''}
+                            </ul>
+                        </div>
+                    `;
+                }
+
+                // Technical dependencies
+                const deps = data.dependencies || {};
+                if (deps.usesLibraries?.length || deps.staticLibs?.length || deps.sharedUserId || deps.sameSharedUser?.length) {
+                    html += `<div class="dep-section"><h4>🔧 Technical Dependencies</h4><ul class="dep-list">`;
+
+                    if (deps.sharedUserId) {
+                        html += `<li><span class="icon">👥</span> Shared User ID: <code>${deps.sharedUserId}</code></li>`;
+                    }
+                    if (deps.sameSharedUser?.length) {
+                        html += `<li><span class="icon">🔗</span> Same shared user: ${deps.sameSharedUser.join(', ')}</li>`;
+                    }
+                    if (deps.usesLibraries?.length) {
+                        deps.usesLibraries.forEach(lib => {
+                            html += `<li><span class="icon">📚</span> Uses library: ${lib}</li>`;
+                        });
+                    }
+                    if (deps.staticLibs?.length) {
+                        deps.staticLibs.forEach(lib => {
+                            html += `<li><span class="icon">📦</span> Static library: ${lib}</li>`;
+                        });
+                    }
+
+                    html += `</ul></div>`;
+                }
+
+                // Recommendations
+                if (data.recommendations?.length) {
+                    html += `<div class="dep-section"><h4>💡 Recommendations</h4>`;
+                    data.recommendations.forEach(rec => {
+                        const recClass = rec.icon === '✅' || rec.icon === '👍' ? 'safe' :
+                                        rec.icon === '🚫' ? 'danger' : 'warning';
+                        html += `
+                            <div class="dep-rec ${recClass}">
+                                <span class="icon">${rec.icon}</span>
+                                <div class="content">
+                                    <div class="action">${rec.action}</div>
+                                    <div class="reason">${rec.reason}</div>
+                                </div>
+                            </div>
+                        `;
+                    });
+                    html += `</div>`;
+                }
+
+                // Action buttons
+                html += `
+                    <div style="margin-top:20px;padding-top:15px;border-top:1px solid var(--border);display:flex;gap:10px;">
+                        <button class="act-btn act-disable" onclick="closeDepModal();disablePkg('${pkg}')">Disable Package</button>
+                        <button class="act-btn act-remove" onclick="closeDepModal();removePkg('${pkg}')">Remove Package</button>
+                    </div>
+                `;
+
+                body.innerHTML = html;
+                log(`Dependency analysis complete for ${pkg}`, 'success');
+
+            } catch (e) {
+                body.innerHTML = `<div class="dep-safety unknown"><p>Error loading dependencies: ${e.message}</p></div>`;
+                log(`Dependency analysis failed: ${e.message}`, 'error');
+            }
+        }
+
+        function closeDepModal() {
+            document.getElementById('depModal').classList.remove('show');
+        }
+
+        // Close modal on overlay click
+        document.addEventListener('DOMContentLoaded', () => {
+            const modal = document.getElementById('depModal');
+            if (modal) {
+                modal.addEventListener('click', (e) => {
+                    if (e.target === modal) closeDepModal();
+                });
+            }
+        });
+    </script>
+
+    <!-- Dependency Modal -->
+    <div id="depModal" class="modal-overlay" onclick="if(event.target===this)closeDepModal()">
+        <div class="modal">
+            <div class="modal-header">
+                <h3 id="depModalTitle">Package Dependencies</h3>
+                <button class="modal-close" onclick="closeDepModal()">&times;</button>
+            </div>
+            <div class="modal-body" id="depModalBody">
+                <!-- Content loaded dynamically -->
+            </div>
+        </div>
+    </div>
+</body>
+</html>

@@ -1,0 +1,53 @@
+{
+  "name": "android-slim",
+  "version": "1.0.0",
+  "description": "Universal Android device management and debloating dashboard",
+  "main": "server.js",
+  "bin": "server.js",
+  "scripts": {
+    "start": "node server.js",
+    "lint": "eslint server.js && htmlhint dashboard.html",
+    "lint:js": "eslint server.js",
+    "lint:html": "htmlhint dashboard.html",
+    "lint:fix": "eslint server.js --fix",
+    "build": "pkg . --out-path dist",
+    "build:win": "pkg . --targets node18-win-x64 --out-path dist",
+    "build:mac": "pkg . --targets node18-macos-x64 --out-path dist",
+    "build:linux": "pkg . --targets node18-linux-x64 --out-path dist",
+    "build:all": "pkg . --targets node18-win-x64,node18-macos-x64,node18-linux-x64 --out-path dist"
+  },
+  "pkg": {
+    "assets": [
+      "dashboard.html"
+    ],
+    "targets": [
+      "node18-win-x64"
+    ],
+    "outputPath": "dist"
+  },
+  "keywords": [
+    "android",
+    "adb",
+    "debloat",
+    "xiaomi",
+    "samsung",
+    "oppo",
+    "oneplus",
+    "google-pixel",
+    "package-manager"
+  ],
+  "author": "",
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/yourusername/android-slim.git"
+  },
+  "engines": {
+    "node": ">=16.0.0"
+  },
+  "devDependencies": {
+    "eslint": "^8.57.0",
+    "htmlhint": "^1.1.4",
+    "pkg": "^5.8.1"
+  }
+}

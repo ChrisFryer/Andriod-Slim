@@ -157,16 +157,24 @@ adb pair <IP>:<PAIRING_PORT>
 adb connect <IP>:<DEBUG_PORT>
 ```
 
-#### Method 2: Via USB First
+#### Method 2: Via USB First (Recommended - Auto-Detect)
 
-1. Connect via USB first
-2. Enable WiFi debugging:
+The dashboard can **automatically detect your phone's WiFi IP** when connected via USB:
+
+1. Connect phone to PC via USB cable
+2. Start the server: `node server.js`
+3. Open `http://localhost:3000` in your browser
+4. Click the **📡 Detect IP** button
+5. The phone's WiFi IP will auto-populate
+6. Click **🔌 Connect** to switch to WiFi
+7. You can now disconnect the USB cable
+
+**Manual method** (if auto-detect doesn't work):
 ```bash
+# Enable TCP/IP mode
 adb tcpip 5555
-```
-3. Find phone's IP: **Settings** > **WiFi** > tap connected network > **IP Address**
-4. Disconnect USB and connect via WiFi:
-```bash
+
+# Find phone's IP: Settings > WiFi > tap connected network > IP Address
 adb connect <PHONE_IP>:5555
 ```
 
@@ -213,8 +221,9 @@ Android Slim server running on http://localhost:3000
 **Option A: Via Browser**
 1. Open your web browser
 2. Go to `http://localhost:3000`
-3. Enter your device's IP:Port (e.g., `192.168.1.100:5555`)
-4. Click **Connect**
+3. If connected via USB, click **📡 Detect IP** to auto-fill the WiFi address
+4. Or manually enter your device's IP:Port (e.g., `192.168.1.100:5555`)
+5. Click **🔌 Connect**
 
 **Option B: Direct File**
 1. Open `dashboard.html` directly in your web browser

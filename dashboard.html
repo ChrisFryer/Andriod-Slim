@@ -221,8 +221,11 @@
                     <span id="connText">Disconnected</span>
                 </div>
                 <div id="connInfo" class="conn-info"></div>
-                <input type="text" class="ip-input" id="ipInput" value="172.169.10.189:5555" placeholder="Device IP:Port">
-                <button class="btn btn-primary" style="width:100%;margin-top:5px;" onclick="connect()">🔌 Connect</button>
+                <input type="text" class="ip-input" id="ipInput" placeholder="Device IP:Port (e.g. 192.168.1.100:5555)">
+                <div style="display:flex;gap:5px;margin-top:5px;">
+                    <button class="btn btn-secondary" style="flex:1;" onclick="detectWifiIP()">📡 Detect IP</button>
+                    <button class="btn btn-primary" style="flex:1;" onclick="connect()">🔌 Connect</button>
+                </div>
             </div>
             <nav class="nav-section">
                 <h3>Analysis</h3>
@@ -997,6 +1000,22 @@
                 body: JSON.stringify(data)
             });
             return res.json();
+        }
+
+        // Detect WiFi IP from USB-connected device
+        async function detectWifiIP() {
+            log('Detecting WiFi IP address (requires USB connection)...', 'info');
+            try {
+                const res = await api('getWifiIP');
+                if (res.success) {
+                    document.getElementById('ipInput').value = res.fullAddress;
+                    log(`Detected WiFi IP: ${res.fullAddress}`, 'success', 'adb tcpip 5555 && adb shell ip -f inet addr show wlan0');
+                } else {
+                    throw new Error(res.error || 'Could not detect IP');
+                }
+            } catch (e) {
+                log(`Failed to detect IP: ${e.message}`, 'error');
+            }
         }
 
         // Connection

@@ -625,6 +625,33 @@ const handlers = {
         }
     },
 
+    // Get WiFi IP address from USB-connected device
+    async getWifiIP() {
+        try {
+            // First enable TCP/IP mode on port 5555
+            await adb('tcpip 5555');
+
+            // Get WiFi IP address
+            const result = await adb('shell ip -f inet addr show wlan0');
+            const match = result.stdout.match(/inet\s+(\d+\.\d+\.\d+\.\d+)/);
+
+            if (match) {
+                return {
+                    success: true,
+                    ip: match[1],
+                    fullAddress: `${match[1]}:5555`
+                };
+            } else {
+                return {
+                    success: false,
+                    error: 'Could not detect WiFi IP. Is WiFi enabled on the device?'
+                };
+            }
+        } catch (e) {
+            return { success: false, error: e.message };
+        }
+    },
+
     // Device Info
     async deviceInfo() {
         try {

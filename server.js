@@ -1031,9 +1031,9 @@ const handlers = {
 
                     // Try to get active connections - use lsof if available
                     try {
-                        const lsofResult = await adb(`shell "lsof -i -n 2>/dev/null | grep ${uid} || echo ''"`);
+                        const lsofResult = await adb('shell lsof -i -n');
                         if (lsofResult.stdout.trim()) {
-                            const lines = lsofResult.stdout.trim().split('\n');
+                            const lines = lsofResult.stdout.trim().split('\n').filter(l => l.includes(uid));
                             for (const line of lines) {
                                 const parts = line.split(/\s+/);
                                 if (parts.length >= 9) {
@@ -1621,7 +1621,7 @@ const handlers = {
     async netstat() {
         // Use -W for wide output (prevents IP truncation) and -tn for TCP numeric
         // Wrap in quotes to ensure redirection happens on Android, not Windows
-        const result = await adb('shell "netstat -tnW 2>/dev/null"');
+        const result = await adb('shell netstat -tnW');
 
         const connections = result.stdout.split('\n')
             .filter(line => {
@@ -2144,8 +2144,10 @@ const handlers = {
 
         try {
             // First, detect number of CPU cores dynamically
-            const coreCountResult = await adb('shell "ls -d /sys/devices/system/cpu/cpu[0-9]* 2>/dev/null | wc -l"');
-            const numCores = parseInt(coreCountResult.stdout.trim()) || 8;
+            const coreCountResult = await adb('shell ls /sys/devices/system/cpu/');
+            // Count cpu[0-9] entries from directory listing
+            const cpuDirs = coreCountResult.stdout.split(/\s+/).filter(f => /^cpu\d+$/.test(f));
+            const numCores = cpuDirs.length || 8;
 
             // Get CPU stats from /proc/stat (two samples for usage calculation)
             const stat1 = await adb('shell cat /proc/stat');
@@ -2153,24 +2155,39 @@ const handlers = {
             const stat2 = await adb('shell cat /proc/stat');
 
             // Build dynamic frequency query for detected cores
-            const coreRange = Array.from({length: numCores}, (_, i) => i).join(' ');
-            const freqResult = await adb(`shell "for i in ${coreRange}; do echo CPU$i; cat /sys/devices/system/cpu/cpu$i/cpufreq/scaling_cur_freq 2>/dev/null || echo 0; cat /sys/devices/system/cpu/cpu$i/cpufreq/scaling_max_freq 2>/dev/null || echo 0; cat /sys/devices/system/cpu/cpu$i/cpufreq/scaling_min_freq 2>/dev/null || echo 0; done"`);
+            // Get frequency for each core individually (Windows-compatible)
+            const freqData = [];
+            for (let i = 0; i < numCores; i++) {
+                try {
+                    const curFreq = await adb(`shell cat /sys/devices/system/cpu/cpu${i}/cpufreq/scaling_cur_freq`);
+                    const maxFreq = await adb(`shell cat /sys/devices/system/cpu/cpu${i}/cpufreq/scaling_max_freq`);
+                    const minFreq = await adb(`shell cat /sys/devices/system/cpu/cpu${i}/cpufreq/scaling_min_freq`);
+                    freqData.push({
+                        core: i,
+                        cur: parseInt(curFreq.stdout.trim()) || 0,
+                        max: parseInt(maxFreq.stdout.trim()) || 0,
+                        min: parseInt(minFreq.stdout.trim()) || 0
+                    });
+                } catch (e) {
+                    freqData.push({ core: i, cur: 0, max: 0, min: 0 });
+                }
+            }
 
             // Get governor
-            const governorResult = await adb('shell "cat /sys/devices/system/cpu/cpu0/cpufreq/scaling_governor 2>/dev/null"');
+            const governorResult = await adb('shell cat /sys/devices/system/cpu/cpu0/cpufreq/scaling_governor');
 
             // Get online cores
-            const onlineResult = await adb('shell "cat /sys/devices/system/cpu/online 2>/dev/null"');
+            const onlineResult = await adb('shell cat /sys/devices/system/cpu/online');
 
             // Get temperature - try multiple thermal zones for compatibility
-            let tempResult = await adb('shell "cat /sys/class/thermal/thermal_zone0/temp 2>/dev/null"');
+            let tempResult = await adb('shell cat /sys/class/thermal/thermal_zone0/temp');
             if (!tempResult.stdout || tempResult.stdout.trim() === '') {
                 // Try alternative thermal paths
-                tempResult = await adb('shell "cat /sys/devices/virtual/thermal/thermal_zone0/temp 2>/dev/null || cat /sys/class/hwmon/hwmon0/temp1_input 2>/dev/null"');
+                tempResult = await adb('shell cat /sys/devices/virtual/thermal/thermal_zone0/temp');
             }
 
             // Try to get CPU model/architecture info
-            const cpuInfoResult = await adb('shell "cat /proc/cpuinfo | grep -E \\"Hardware|model name|Processor\\" | head -3"');
+            const cpuInfoResult = await adb('shell cat /proc/cpuinfo');
 
             // Parse CPU stats
             function parseCpuStats(output) {
@@ -2228,21 +2245,12 @@ const handlers = {
                 }
             }
 
-            // Parse frequency info
-            const freqLines = freqResult.stdout.split('\n');
-            let currentCore = -1;
-            let freqIndex = 0;
-            for (const line of freqLines) {
-                const coreMatch = line.match(/CPU(\d+)/);
-                if (coreMatch) {
-                    currentCore = parseInt(coreMatch[1]);
-                    freqIndex = 0;
-                } else if (currentCore >= 0 && currentCore < cores.length) {
-                    const freq = parseInt(line.trim()) || 0;
-                    if (freqIndex === 0) cores[currentCore].frequency = freq;
-                    else if (freqIndex === 1) cores[currentCore].maxFrequency = freq;
-                    else if (freqIndex === 2) cores[currentCore].minFrequency = freq;
-                    freqIndex++;
+            // Apply frequency data to cores
+            for (const freq of freqData) {
+                if (freq.core >= 0 && freq.core < cores.length) {
+                    cores[freq.core].frequency = freq.cur;
+                    cores[freq.core].maxFrequency = freq.max;
+                    cores[freq.core].minFrequency = freq.min;
                 }
             }
 
@@ -2451,7 +2459,7 @@ const handlers = {
 
         try {
             // Get process CPU usage
-            const result = await adb('shell "top -b -n 1 2>/dev/null | head -35"');
+            const result = await adb('shell top -b -n 1');
 
             const processes = [];
             const lines = result.stdout.split('\n');
@@ -2908,7 +2916,7 @@ const handlers = {
         try {
             // Use a single command to find all images with their sizes
             // This is much faster and more reliable than individual stat calls
-            const result = await adb(`shell "find /sdcard/DCIM /sdcard/Pictures /sdcard/Download /sdcard/Wallpapers -maxdepth 2 -type f \\( -iname '*.jpg' -o -iname '*.jpeg' -o -iname '*.png' \\) -exec ls -la {} \\; 2>/dev/null"`);
+            const result = await adb('shell ls -la /sdcard/DCIM/ /sdcard/Pictures/ /sdcard/Download/ 2>/dev/null');
 
             const images = [];
 
@@ -2965,7 +2973,7 @@ const handlers = {
     async getWallpaperInfo() {
         try {
             // Run head inside the shell command to avoid Windows pipe issues
-            const result = await adb('shell "dumpsys wallpaper 2>/dev/null | head -50"');
+            const result = await adb('shell dumpsys wallpaper');
             return { info: result.stdout };
         } catch (e) {
             // Fallback without head if it fails

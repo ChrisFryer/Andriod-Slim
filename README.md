@@ -2,6 +2,8 @@
 
 A universal Android device management and debloating dashboard. Analyze, manage, and optimize packages on your Android device via ADB over WiFi or USB.
 
+<img width="2561" height="1240" alt="image" src="https://github.com/user-attachments/assets/81a55a79-6f3f-45be-8722-55208bdacb65" />
+
 ## Supported Devices
 
 - **Xiaomi** (MIUI, HyperOS)

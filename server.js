@@ -594,6 +594,23 @@ const handlers = {
             const result = await adb(`connect ${ip}`);
 
             if (result.stdout.includes('connected') || result.stdout.includes('already')) {
+                // Verify connection is actually working
+                const devices = await adb('devices -l');
+                const isOnline = devices.stdout.includes(ip) &&
+                                 !devices.stdout.includes('offline') &&
+                                 !devices.stdout.includes('unauthorized');
+
+                if (!isOnline) {
+                    throw new Error('Device connected but not responding. Check WiFi and USB debugging settings.');
+                }
+
+                // Double-check with a simple command
+                try {
+                    await adb('shell echo ok');
+                } catch (verifyErr) {
+                    throw new Error('Device not responding to commands. Reconnect USB and try again.');
+                }
+
                 log(`Connected to ${ip}`, 'success');
                 return { success: true, message: result.stdout, ip };
             } else {

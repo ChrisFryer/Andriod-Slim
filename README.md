@@ -185,7 +185,7 @@ adb connect <PHONE_IP>:5555
 ### 1. Clone or Download
 
 ```bash
-git clone https://github.com/yourusername/android-slim.git
+git clone https://github.com/ChrisFryer/Andriod-Slim.git
 cd android-slim
 ```
 

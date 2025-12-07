@@ -645,18 +645,65 @@ const handlers = {
     // Get WiFi IP address from USB-connected device
     async getWifiIP() {
         try {
-            // First enable TCP/IP mode on port 5555
-            await adb('tcpip 5555');
+            // First, detect USB-connected device (run without -s flag)
+            const devicesResult = await new Promise((resolve, reject) => {
+                exec(`"${ADB_PATH}" devices`, (error, stdout, stderr) => {
+                    if (error) reject({ error: error.message, stderr });
+                    else resolve({ stdout: stdout.trim(), stderr: stderr.trim() });
+                });
+            });
+
+            // Parse devices list to find USB device (not an IP address)
+            const lines = devicesResult.stdout.split('\n').slice(1); // Skip header
+            let usbDevice = null;
+            for (const line of lines) {
+                const parts = line.trim().split('\t');
+                if (parts.length >= 2 && parts[1] === 'device') {
+                    const deviceId = parts[0];
+                    // USB devices have serial numbers, not IP:port format
+                    if (!deviceId.includes(':')) {
+                        usbDevice = deviceId;
+                        break;
+                    }
+                }
+            }
+
+            if (!usbDevice) {
+                return {
+                    success: false,
+                    error: 'No USB-connected device found. Connect your phone via USB first.'
+                };
+            }
+
+            log(`Found USB device: ${usbDevice}`, 'info');
+
+            // Enable TCP/IP mode on the USB device
+            await new Promise((resolve, reject) => {
+                exec(`"${ADB_PATH}" -s ${usbDevice} tcpip 5555`, (error, stdout, stderr) => {
+                    if (error && !stdout) reject({ error: error.message, stderr });
+                    else resolve({ stdout: stdout.trim(), stderr: stderr.trim() });
+                });
+            });
+
+            // Small delay for tcpip to take effect
+            await new Promise(r => setTimeout(r, 1000));
 
             // Get WiFi IP address
-            const result = await adb('shell ip -f inet addr show wlan0');
+            const result = await new Promise((resolve, reject) => {
+                exec(`"${ADB_PATH}" -s ${usbDevice} shell ip -f inet addr show wlan0`, (error, stdout, stderr) => {
+                    if (error && !stdout) reject({ error: error.message, stderr });
+                    else resolve({ stdout: stdout.trim(), stderr: stderr.trim() });
+                });
+            });
+
             const match = result.stdout.match(/inet\s+(\d+\.\d+\.\d+\.\d+)/);
 
             if (match) {
                 return {
                     success: true,
                     ip: match[1],
-                    fullAddress: `${match[1]}:5555`
+                    fullAddress: `${match[1]}:5555`,
+                    usbDevice: usbDevice
                 };
             } else {
                 return {
